@@ -35,7 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │                                                      │
 │  ┌─────────────────────────────────────────────┐     │
 │  │ 模块 1: Git Monitor (✅ 已实现)               │     │
-│  │  ├─ 3 个 Tool — TIA-init / repo_monitor / repo_clone │
+│  │  ├─ 6 个 Tool — TIA-init / repo_monitor / repo_clone / impact_analysis / test_recommendation / risk_assessment │
 │  │  ├─ 3 种平台适配器 (GitHub / Local / Generic)  │     │
 │  │  └─ 配置/状态分离 + seenShas 去重               │     │
 │  └─────────────────────────────────────────────┘     │
@@ -47,7 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │  │  └─ server.conf.json — 安全配置独立文件       │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ 模块 2: Impact Analysis (🔜 规划中)            │     │
+│  │ 模块 2: Impact Analysis (✅ 已实现)               │     │
 │  │  └─ 代码变更 → 受影响模块/用例分析              │     │
 │  └─────────────────────────────────────────────┘     │
 └──────────────────────────────────────────────────────┘
@@ -186,7 +186,7 @@ enabled = true
 ```
 src/
 ├── index.ts              # MCP Server 入口 + stdio transport + 启动校验
-├── tools.ts              # 3 个 Tool 的 Schema + 路由 + 处理函数
+├── tools/                # 6 个 Tool 的 Schema + 路由<!-- 已拆分 -->
 ├── state.ts              # 配置/状态读写、merge 逻辑、水位管理、快照归档、校验
 ├── types.ts              # 共享类型定义
 └── platforms/            # Git 平台适配器层（不感知 MCP 协议，纯数据层）
@@ -440,7 +440,8 @@ repo_monitor(action="status")                             # 确认水位正常
 | **类型层** | `types.ts` + `platforms/types.ts` | `RepoConfig` / `RepoState` / `MonitorEntry` / `ServerConf` / `PlatformAdapter` | 无 |
 | **状态层** | `state.ts` | 配置/状态读写、合并逻辑、水位更新/重置/归档、启动校验、`getBaseDir()` | 类型层 |
 | **安全层** | `security.ts` | `server.conf.json` 管理、IP 白名单校验、API KEY 生成/校验 | 类型层 |
-| **工具层** | `tools.ts` | 3 个 Tool 的 Schema + 路由 + 处理函数（含 API KEY 校验） | 状态层 + 安全层 + 适配器层 |
+| **工具层** | `tools/*.ts` | 6 个 Tool 的 Schema + 路由 + 处理函数（含 API KEY 校验） | 状态层 + 安全层 + 适配器层 |
+| **影响分析层** | `impact-analysis/*.ts` | Phase 2-4: 规则匹配 / 测试推荐 / 风险评估 | 类型层 + 状态层 |
 | **适配器层** | `platforms/*.ts` | 封装 Git 平台 API 差异，实现 `PlatformAdapter` 接口 | 类型层 |
 | **入口** | `index.ts` | Transport 双模启动（stdio / http）+ 安全中间件注入 | 以上全部 |
 

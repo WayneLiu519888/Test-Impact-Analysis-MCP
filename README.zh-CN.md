@@ -6,13 +6,13 @@
 ![MCP](https://img.shields.io/badge/-MCP-black?logo=anthropic&logoColor=white)
 ![Express](https://img.shields.io/badge/-Express-000000?logo=express&logoColor=white)
 
-> **面向软件测试人员的 MCP 工具集** | **3 个核心工具** | **双 Transport 模式** | **3 平台适配器** | **跨 AI 编程框架支持**
+> **面向软件测试人员的 MCP 工具集** | **6 个核心工具** | **双 Transport 模式** | **3 平台适配器** | **跨 AI 编程框架支持**
 
 ---
 
 <div align="center">
 
-**🌐 语言 / Language / 言語**
+**🌐 语言 / Language / 語言**
 
 [**English**](README.en.md) | [简体中文](README.zh-CN.md) | [繁體中文](docs/zh-TW/README.md) | [日本語](docs/ja-JP/README.md)
 
@@ -55,16 +55,22 @@
 │  │  └─ 配置/状态分离 + seenShas 去重               │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ 模块 2: Impact Analysis (🔜 规划中)            │     │
-│  │  └─ 代码变更 → 受影响模块/用例分析              │     │
+│  │ 模块 2: Impact Analysis (✅ 已实现)               │     │
+│  │  ├─ impact_analysis Tool                         │     │
+│  │  ├─ glob 规则匹配引擎 + 置信度计算                  │     │
+│  │  └─ 自动推断测试映射                               │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ 模块 3: Test Recommendation (💡 规划中)        │     │
-│  │  └─ 基于变更智能推荐测试用例                    │     │
+│  │ 模块 3: Test Recommendation (✅ 已实现)          │     │
+│  │  ├─ test_recommendation Tool                   │     │
+│  │  ├─ 推荐分计算 + 排序 (权重×置信度)              │     │
+│  │  └─ 最小可行测试集生成                            │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ 模块 4: Risk Assessment (💡 规划中)            │     │
-│  │  └─ 变更风险量化与报告                          │     │
+│  │ 模块 4: Risk Assessment (✅ 已实现)              │     │
+│  │  ├─ risk_assessment Tool                       │     │
+│  │  ├─ 三位风险评分 (文件/模块/置信度)               │     │
+│  │  └─ 智能缓解建议生成                              │     │
 │  └─────────────────────────────────────────────┘     │
 └──────────────────────────────────────────────────────┘
 ```
@@ -156,14 +162,30 @@ Test-Impact-Analysis-mcp/
 │
 ├── src/                        # 核心源码
 │   ├── index.ts                # MCP Server 入口 + Transport 双模启动
-│   ├── tools.ts                # 3 个 Tool 的 Schema + 路由 + 处理函数
 │   ├── state.ts                # 配置/状态读写、水位管理、快照归档
 │   ├── types.ts                # 共享类型定义
-│   └── platforms/              # Git 平台适配器层
-│       ├── types.ts            # PlatformAdapter 接口定义
-│       ├── github.ts           # GitHub REST API v3 适配器
-│       ├── generic.ts          # 通用 REST API 适配器（GitLab/CodeHub 等）
-│       └── local.ts            # 本地 git 命令适配器
+│   ├── security.ts             # IP 白名单 + API KEY 安全
+│   ├── platforms/              # Git 平台适配器层
+│   │   ├── types.ts            # PlatformAdapter 接口定义
+│   │   ├── github.ts           # GitHub REST API v3 适配器
+│   │   ├── generic.ts          # 通用 REST API 适配器（GitLab/CodeHub 等）
+│   │   └── local.ts            # 本地 git 命令适配器
+│   ├── tools/                  # MCP 工具模块（6 个工具）
+│   │   ├── index.ts            # 路由分发 + 认证
+│   │   ├── schemas.ts          # 工具 Schema 定义
+│   │   ├── helpers.ts          # 适配器工厂 / 参数校验 / 响应辅助
+│   │   ├── tia-init.ts         # TIA-init 初始化引导
+│   │   ├── repo-monitor.ts     # 仓库监控（status/check/reset）
+│   │   └── repo-clone.ts       # 代码克隆（全量/增量）
+│   ├── impact-analysis/        # 影响分析模块（Phase 2-4）
+│   │   ├── types.ts            # 规则/结果/推荐/风险类型
+│   │   ├── state.ts            # impact-rules.conf.json 读写
+│   │   ├── analyzer.ts         # glob 匹配引擎 + 置信度 + 自动推断
+│   │   ├── handler.ts          # impact_analysis 工具处理器
+│   │   ├── recommendation.ts   # test_recommendation 推荐引擎
+│   │   ├── risk-scorer.ts      # 风险评分引擎 (0-100)
+│   │   └── risk-handler.ts     # risk_assessment 工具处理器
+│   └── tests/                  # 单元测试（78 个测试用例）
 │
 ├── .claude/commands/           # Claude Code 斜杠命令
 │   ├── repo_monitor.md         # /repo_monitor — 统一监控入口
@@ -188,6 +210,7 @@ Test-Impact-Analysis-mcp/
 │
 ├── monitors.conf.json          # 用户手写的仓库监控配置
 ├── monitors.json               # 程序维护的水位状态文件
+├── impact-rules.conf.json      # 影响分析规则配置
 └── server.conf.json            # HTTP 模式安全配置
 ```
 
@@ -197,13 +220,13 @@ Test-Impact-Analysis-mcp/
 
 ### 克制设计原则
 
-> **MCP 工具越多 → 上下文膨胀 → LLM 推理能力下降。** 本项目从 7 个工具合并为 3 个，精简 57%。
+> **MCP 工具越多 → 上下文膨胀 → LLM 推理能力下降。** 本项目初期从 7 个工具合并为 3 个（精简 57%），Phase 2-4 新增 3 个分析工具（共 6 个），每个都有独立的数据源和副作用边界。
 
 | 原则 | 做法 |
 |------|------|
 | 能通过配置文件完成的事 | **不建工具**。直接编辑 JSON |
-| 纯查询无副作用 | 合并到已有工具的 `action` 参数 |
-| 单一功能薄包装 | 审视是否可以合并到语义相近的工具 |
+| 不同数据源/副作用 | 独立工具（impact_analysis / test_recommendation / risk_assessment） |
+| 语义相近可合并 | 合并到已有工具的 `action` 参数 |
 
 ### 工具 1：`repo_monitor` — 统一仓库监控
 
@@ -303,6 +326,42 @@ TIA-init
 TIA-init(agentType="ClaudeCode")
 ```
 
+### 工具 4：`impact_analysis` — 代码变更影响分析
+
+基于 `impact-rules.conf.json` 中配置的文件→测试映射规则，自动匹配变更文件对应的测试模块。
+
+```bash
+impact_analysis(name="gh-backend")              # 分析从水位到 HEAD
+impact_analysis(name="gh-backend", from="a", to="b")  # 指定 SHA 范围
+impact_analysis(module="用户中心")               # 按模块批量分析
+```
+
+**匹配策略**: glob 匹配 + 四级置信度（精确 95% / 目录 70% / 通配 45% / 推断 30%）
+
+### 工具 5：`test_recommendation` — 智能测试推荐
+
+在影响分析结果上计算推荐分，按优先级排序，生成最小可行测试集。
+
+```bash
+test_recommendation(name="gh-backend")
+test_recommendation(module="用户中心")
+```
+
+**推荐分** = 风险权重 (high=100 / medium=50 / low=20) × 置信度 (0-100)  
+**分组**: 强烈建议 (≥7000) | 建议 (≥2000) | 可选
+
+### 工具 6：`risk_assessment` — 变更风险评估
+
+量化代码变更风险，综合文件数量、模块风险分布、置信度三维度计算。
+
+```bash
+risk_assessment(name="gh-backend")
+risk_assessment(module="用户中心")
+```
+
+**评分**: 文件分 (0-60) + 模块分 (0-40) + 置信度惩罚 (0-20) = 0-100  
+**等级**: 🟢 低 (≤30) | 🟡 中 (31-60) | 🟠 高 (61-85) | 🔴 严重 (86-100)
+
 ---
 
 ## 🗺️ 命令速查
@@ -314,6 +373,9 @@ TIA-init(agentType="ClaudeCode")
 | `/repo_status` | `/repo_status [name=\|module=]` | 查看仓库水位（快捷命令） |
 | `/repo_check` | `/repo_check [name=\|module=]` | 检查新提交（快捷命令） |
 | `/repo_reset` | `/repo_reset <target> [--label] [--since]` | 重置水位（快捷命令） |
+| `impact_analysis` | `impact_analysis [name=\|module=] [from=] [to=]` | 代码变更影响分析 |
+| `test_recommendation` | `test_recommendation [name=\|module=] [from=] [to=]` | 智能测试推荐 |
+| `risk_assessment` | `risk_assessment [name=\|module=] [from=] [to=]` | 变更风险评估 |
 
 ### 常用示例
 
@@ -348,6 +410,9 @@ TIA-init(agentType="ClaudeCode")
 | 查看水位 | `/repo_status` | `repo_status` cmd | `$repo-status` |
 | 检查更新 | `/repo_check` | `repo_check` cmd | `$repo-check` |
 | 重置水位 | `/repo_reset` | `repo_reset` cmd | `$repo-reset` |
+| 影响分析 | `impact_analysis` | `impact_analysis` cmd | `$impact-analysis` |
+| 测试推荐 | `test_recommendation` | `test_recommendation` cmd | `$test-recommendation` |
+| 风险评估 | `risk_assessment` | `risk_assessment` cmd | `$risk-assessment` |
 
 ---
 
@@ -394,7 +459,8 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts
 | **类型层** | `types.ts` + `platforms/types.ts` | 所有类型定义 + 适配器接口 | 无 |
 | **状态层** | `state.ts` | 配置/状态读写、水位管理、快照归档 | 类型层 |
 | **安全层** | `security.ts` | IP 白名单校验、API KEY 签发/校验 | 类型层 |
-| **工具层** | `tools.ts` | 3 个 Tool 的 Schema + 路由 + 处理函数 | 状态层 + 安全层 + 适配器层 |
+| **工具层** | `tools/*.ts` | 6 个 Tool 的 Schema + 路由 | 状态层 + 安全层 + 适配器层 |
+| **影响分析层** | `impact-analysis/*.ts` | 规则匹配 / 推荐 / 风险评估 | 类型层 + 状态层 |
 | **适配器层** | `platforms/*.ts` | Git 平台 API 封装，实现 `PlatformAdapter` | 类型层 |
 | **入口** | `index.ts` | Transport 双模启动 + 安全中间件注入 | 以上全部 |
 
@@ -470,6 +536,11 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts
 
 # ─── 定时监控 ───
 /cron "*/15 * * * *" "repo_monitor(action='check')"
+
+# ─── 影响分析 ───
+impact_analysis(name="gh-backend")               # 变更影响了哪些测试？
+test_recommendation(name="gh-backend")           # 先跑哪些测试？
+risk_assessment(name="gh-backend")               # 这次变更风险多大？
 ```
 
 ---
@@ -558,9 +629,9 @@ npx tsc --noEmit       # 类型检查
 | Phase 1.5 | Transport 双模 + IP 白名单 | ✅ 已完成 |
 | Phase 1.6 | `repo_clone` 远程模式（Transport 感知，自动返回指令） | ✅ 已完成 |
 | Phase 1.7 | TIA-init 客户端初始化引导（API KEY 自助签发 + Commands 同步） | ✅ 已完成 |
-| Phase 2 | Impact Analysis — 代码变更 → 受影响模块/用例分析 | 🔜 规划中 |
-| Phase 3 | Test Recommendation — 基于变更智能推荐测试用例 | 💡 规划中 |
-| Phase 4 | Risk Assessment — 变更风险量化与报告 | 💡 规划中 |
+| Phase 2 | Impact Analysis — 代码变更 → 受影响模块/用例分析 | ✅ 已完成 |
+| Phase 3 | Test Recommendation — 基于变更智能推荐测试用例 | ✅ 已完成 |
+| Phase 4 | Risk Assessment — 变更风险量化与报告 | ✅ 已完成 |
 
 ---
 

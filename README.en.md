@@ -6,13 +6,13 @@
 ![MCP](https://img.shields.io/badge/-MCP-black?logo=anthropic&logoColor=white)
 ![Express](https://img.shields.io/badge/-Express-000000?logo=express&logoColor=white)
 
-> **MCP Toolset for Software Testers** | **3 Core Tools** | **Dual Transport** | **3 Platform Adapters** | **Cross-Framework Support**
+> **MCP Toolset for Software Testers** | **6 Core Tools** | **Dual Transport** | **3 Platform Adapters** | **Cross-Framework Support**
 
 ---
 
 <div align="center">
 
-**🌐 语言 / Language / 言語**
+**🌐 语言 / Language / 語言**
 
 [**English**](README.en.md) | [简体中文](README.zh-CN.md) | [繁體中文](docs/zh-TW/README.md) | [日本語](docs/ja-JP/README.md)
 
@@ -55,16 +55,22 @@ Exposes test analysis capabilities to Claude Code, OpenCode, Codex, and other AI
 │  │  └─ Config/State Separation + seenShas Dedup       │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ Module 2: Impact Analysis (🔜 Planned)       │     │
-│  │  └─ Code changes → Affected modules/test cases    │
+│  │ Module 2: Impact Analysis (✅ Complete)           │     │
+│  │  ├─ impact_analysis Tool                           │     │
+│  │  ├─ Glob matching engine + confidence scoring      │     │
+│  │  └─ Auto-inference of test mappings                │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ Module 3: Test Recommendation (💡 Planned)   │     │
-│  │  └─ Change-based intelligent test recommendations │
+│  │ Module 3: Test Recommendation (✅ Complete)       │     │
+│  │  ├─ test_recommendation Tool                      │     │
+│  │  ├─ Score = risk_weight × confidence              │     │
+│  │  └─ Minimum viable test suite generation          │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ Module 4: Risk Assessment (💡 Planned)       │     │
-│  │  └─ Change risk quantification and reporting      │
+│  │ Module 4: Risk Assessment (✅ Complete)           │     │
+│  │  ├─ risk_assessment Tool                          │     │
+│  │  ├─ 3-factor scoring (files/modules/confidence)   │     │
+│  │  └─ Intelligent mitigation suggestions            │     │
 │  └─────────────────────────────────────────────┘     │
 └──────────────────────────────────────────────────────┘
 ```
@@ -197,7 +203,7 @@ Test-Impact-Analysis-mcp/
 
 ### Design Principle: Tool Restraint
 
-> **More MCP tools → bigger context footprint → degraded LLM reasoning.** This project merged 7 tools into 3 — a 57% reduction.
+> **More MCP tools → bigger context footprint → degraded LLM reasoning.** The project started by merging 7 tools into 3 (57% reduction). Phase 2-4 added 3 analysis tools (6 total), each justified by distinct data sources/outcomes.
 
 | Principle | Practice |
 |-----------|----------|
@@ -303,6 +309,39 @@ TIA-init
 TIA-init(agentType="ClaudeCode")
 ```
 
+### Tool 4: `impact_analysis` — Change Impact Analysis
+
+Matches changed files to test modules using rules from `impact-rules.conf.json`.
+
+```bash
+impact_analysis(name="gh-backend")                  # Analyze from watermark to HEAD
+impact_analysis(module="User Center")               # Analyze by module
+```
+
+**Strategy**: glob matching + 4-level confidence (exact 95% / directory 70% / wildcard 45% / inferred 30%)
+
+### Tool 5: `test_recommendation` — Smart Test Recommendation
+
+Computes recommendation scores, prioritizes tests, and generates a minimum viable test suite.
+
+```bash
+test_recommendation(name="gh-backend")
+```
+
+**Score** = risk_weight (high=100/medium=50/low=20) × confidence (0-100)  
+**Groups**: Strong (≥7000) | Recommended (≥2000) | Optional
+
+### Tool 6: `risk_assessment` — Change Risk Assessment
+
+Quantifies change risk across three dimensions: file count, module risk distribution, and confidence.
+
+```bash
+risk_assessment(name="gh-backend")
+```
+
+**Scoring**: files (0-60) + modules (0-40) + confidence penalty (0-20) = 0-100  
+**Levels**: 🟢 Low (≤30) | 🟡 Medium (31-60) | 🟠 High (61-85) | 🔴 Critical (86-100)
+
 ---
 
 ## 🗺️ Command Reference
@@ -314,6 +353,9 @@ TIA-init(agentType="ClaudeCode")
 | `/repo_status` | `/repo_status [name=\|module=]` | View watermarks (shortcut) |
 | `/repo_check` | `/repo_check [name=\|module=]` | Check new commits (shortcut) |
 | `/repo_reset` | `/repo_reset <target> [--label] [--since]` | Reset watermarks (shortcut) |
+| `impact_analysis` | `impact_analysis [name=\|module=] [from=] [to=]` | Change impact analysis |
+| `test_recommendation` | `test_recommendation [name=\|module=] [from=] [to=]` | Smart test recommendation |
+| `risk_assessment` | `risk_assessment [name=\|module=] [from=] [to=]` | Change risk assessment |
 
 ### Common Examples
 
@@ -348,6 +390,9 @@ Same MCP toolset, shared across three AI coding frameworks.
 | View Watermarks | `/repo_status` | `repo_status` cmd | `$repo-status` |
 | Check Updates | `/repo_check` | `repo_check` cmd | `$repo-check` |
 | Reset Watermarks | `/repo_reset` | `repo_reset` cmd | `$repo-reset` |
+| Impact Analysis | `impact_analysis` | `impact_analysis` cmd | `$impact-analysis` |
+| Test Recommend | `test_recommendation` | `test_recommendation` cmd | `$test-recommendation` |
+| Risk Assess | `risk_assessment` | `risk_assessment` cmd | `$risk-assessment` |
 
 ---
 
@@ -394,7 +439,8 @@ Layer 0 (Express Middleware): All /mcp requests → IP Whitelist → Pass / 403
 | **Types** | `types.ts` + `platforms/types.ts` | All type definitions + adapter interfaces | None |
 | **State** | `state.ts` | Config/state R/W, watermark management, snapshot archiving | Types |
 | **Security** | `security.ts` | IP whitelist, API KEY issuance/verification | Types |
-| **Tools** | `tools.ts` | 3 Tool schemas + routing + handlers | State + Security + Adapters |
+| **Tools** | `tools/*.ts` | 6 Tool schemas + routing | State + Security + Adapters |
+| **Impact Analysis** | `impact-analysis/*.ts` | Rule matching / recommendation / risk scoring | Types + State |
 | **Adapters** | `platforms/*.ts` | Git platform API encapsulation, implements `PlatformAdapter` | Types |
 | **Entry** | `index.ts` | Dual transport startup + security middleware injection | All above |
 
@@ -470,6 +516,11 @@ Layer 0 (Express Middleware): All /mcp requests → IP Whitelist → Pass / 403
 
 # ─── Scheduled Monitoring ───
 /cron "*/15 * * * *" "repo_monitor(action='check')"
+
+# ─── Impact Analysis ───
+impact_analysis(name="gh-backend")              # What tests are affected?
+test_recommendation(name="gh-backend")          # Which to run first?
+risk_assessment(name="gh-backend")              # How risky is this change?
 ```
 
 ---
@@ -558,9 +609,9 @@ Three platforms currently supported:
 | Phase 1.5 | Dual Transport + IP Whitelist | ✅ Complete |
 | Phase 1.6 | `repo_clone` remote mode (Transport-aware, returns instructions) | ✅ Complete |
 | Phase 1.7 | TIA-init client bootstrap (API KEY self-service + Commands sync) | ✅ Complete |
-| Phase 2 | Impact Analysis — Code changes → Affected modules/test cases | 🔜 Planned |
-| Phase 3 | Test Recommendation — Change-based intelligent test recommendations | 💡 Planned |
-| Phase 4 | Risk Assessment — Change risk quantification & reporting | 💡 Planned |
+| Phase 2 | Impact Analysis — Code changes → Affected modules/test cases | ✅ Complete |
+| Phase 3 | Test Recommendation — Change-based intelligent test recommendations | ✅ Complete |
+| Phase 4 | Risk Assessment — Change risk quantification & reporting | ✅ Complete |
 
 ---
 

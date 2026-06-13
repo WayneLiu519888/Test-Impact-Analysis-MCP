@@ -6,15 +6,15 @@
 ![MCP](https://img.shields.io/badge/-MCP-black?logo=anthropic&logoColor=white)
 ![Express](https://img.shields.io/badge/-Express-000000?logo=express&logoColor=white)
 
-> **面向软件测试人员的 MCP 工具集** | **3 个核心工具** | **双 Transport 模式** | **3 平台适配器** | **跨 AI 编程框架支持**
+> **面向软件测试人员的 MCP 工具集** | **6 个核心工具** | **双 Transport 模式** | **3 平台适配器** | **跨 AI 编程框架支持**
 >
-> **MCP Toolset for Software Testers** | **3 Core Tools** | **Dual Transport** | **3 Platform Adapters** | **Cross-Framework Support**
+> **MCP Toolset for Software Testers** | **6 Core Tools** | **Dual Transport** | **3 Platform Adapters** | **Cross-Framework Support**
 
 ---
 
 <div align="center">
 
-**🌐 语言 / Language / 言語**
+**🌐 语言 / Language / 語言**
 
 [**English**](README.en.md) | [简体中文](README.zh-CN.md) | [繁體中文](docs/zh-TW/README.md) | [日本語](docs/ja-JP/README.md)
 
@@ -115,15 +115,13 @@ Choose your language for the full documentation:
 Test-Impact-Analysis-mcp/
 ├── src/                        # 核心源码 / Core source
 │   ├── index.ts                # MCP Server 入口 + Transport 双模
-│   ├── tools.ts                # 3 个 Tool Schema + 路由
 │   ├── state.ts                # 配置/状态读写、水位管理
 │   ├── types.ts                # 共享类型定义
 │   ├── security.ts             # IP 白名单 + API KEY 安全
-│   └── platforms/              # Git 平台适配器层
-│       ├── types.ts            # PlatformAdapter 接口
-│       ├── github.ts           # GitHub REST API v3
-│       ├── generic.ts          # 通用 REST API (GitLab/CodeHub)
-│       └── local.ts            # 本地 git 命令
+│   ├── tools/                  # MCP 工具模块 / Tool routing (6 tools)
+│   ├── impact-analysis/        # Phase 2-4: 影响分析/推荐/风险评估
+│   ├── platforms/              # Git 平台适配器层
+│   └── tests/                  # 单元测试 (78 个)
 │
 ├── .claude/commands/           # Claude Code 斜杠命令
 ├── .opencode/commands/         # OpenCode 命令
@@ -131,6 +129,7 @@ Test-Impact-Analysis-mcp/
 │
 ├── monitors.conf.json          # 用户手写仓库监控配置
 ├── monitors.json               # 程序维护水位状态
+├── impact-rules.conf.json      # 影响分析规则配置
 └── server.conf.json            # HTTP 模式安全配置
 ```
 
@@ -144,9 +143,9 @@ Test-Impact-Analysis-mcp/
 | Phase 1.5 | Transport 双模 + IP 白名单 | ✅ |
 | Phase 1.6 | `repo_clone` 远程模式 | ✅ |
 | Phase 1.7 | TIA-init 客户端初始化引导 | ✅ |
-| Phase 2 | Impact Analysis — 代码变更影响分析 | 🔜 |
-| Phase 3 | Test Recommendation — 智能测试推荐 | 💡 |
-| Phase 4 | Risk Assessment — 变更风险量化 | 💡 |
+| Phase 2 | Impact Analysis — 代码变更影响分析 | ✅ |
+| Phase 3 | Test Recommendation — 智能测试推荐 | ✅ |
+| Phase 4 | Risk Assessment — 变更风险量化 | ✅ |
 
 ---
 

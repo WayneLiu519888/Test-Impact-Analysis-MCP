@@ -6,13 +6,13 @@
 ![MCP](https://img.shields.io/badge/-MCP-black?logo=anthropic&logoColor=white)
 ![Express](https://img.shields.io/badge/-Express-000000?logo=express&logoColor=white)
 
-> **ソフトウェアテスター向け MCP ツールセット** | **3 つのコアツール** | **デュアルトランスポート** | **3 プラットフォーム対応** | **AI フレームワーク横断**
+> **ソフトウェアテスター向け MCP ツールセット** | **6 つのコアツール** | **デュアルトランスポート** | **3 プラットフォーム対応** | **AI フレームワーク横断**
 
 ---
 
 <div align="center">
 
-**🌐 語言 / Language / 言語**
+**🌐 語言 / Language / 語言**
 
 [**English**](../README.en.md) | [简体中文](../README.zh-CN.md) | [繁體中文](zh-TW/README.md) | [日本語](ja-JP/README.md)
 
@@ -309,9 +309,9 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts  # カスタムポート
 | Phase 1.5 | デュアルトランスポート + IP ホワイトリスト | ✅ 完了 |
 | Phase 1.6 | `repo_clone` リモートモード | ✅ 完了 |
 | Phase 1.7 | TIA-init クライアントブートストラップ | ✅ 完了 |
-| Phase 2 | Impact Analysis — コード変更 → 影響分析 | 🔜 計画中 |
-| Phase 3 | Test Recommendation — インテリジェントテスト推奨 | 💡 計画中 |
-| Phase 4 | Risk Assessment — 変更リスク定量化 | 💡 計画中 |
+| Phase 2 | Impact Analysis — コード変更 → 影響分析 | ✅ 完了 |
+| Phase 3 | Test Recommendation — インテリジェントテスト推奨 | ✅ 完了 |
+| Phase 4 | Risk Assessment — 変更リスク定量化 | ✅ 完了 |
 
 ---
 

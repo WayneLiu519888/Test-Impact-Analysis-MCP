@@ -6,13 +6,13 @@
 ![MCP](https://img.shields.io/badge/-MCP-black?logo=anthropic&logoColor=white)
 ![Express](https://img.shields.io/badge/-Express-000000?logo=express&logoColor=white)
 
-> **面向軟體測試人員的 MCP 工具集** | **3 個核心工具** | **雙 Transport 模式** | **3 平台適配器** | **跨 AI 程式框架支援**
+> **面向軟體測試人員的 MCP 工具集** | **6 個核心工具** | **雙 Transport 模式** | **3 平台適配器** | **跨 AI 程式框架支援**
 
 ---
 
 <div align="center">
 
-**🌐 語言 / Language / 言語**
+**🌐 語言 / Language / 語言**
 
 [**English**](../README.en.md) | [简体中文](../README.zh-CN.md) | [繁體中文](zh-TW/README.md) | [日本語](ja-JP/README.md)
 
@@ -352,9 +352,9 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts    # 自訂埠號
 | Phase 1.5 | Transport 雙模 + IP 白名單 | ✅ 已完成 |
 | Phase 1.6 | `repo_clone` 遠端模式 | ✅ 已完成 |
 | Phase 1.7 | TIA-init 客戶端初始化引導 | ✅ 已完成 |
-| Phase 2 | Impact Analysis — 程式碼變更影響分析 | 🔜 規劃中 |
-| Phase 3 | Test Recommendation — 智慧測試推薦 | 💡 規劃中 |
-| Phase 4 | Risk Assessment — 變更風險量化 | 💡 規劃中 |
+| Phase 2 | Impact Analysis — 程式碼變更影響分析 | ✅ 已完成 |
+| Phase 3 | Test Recommendation — 智慧測試推薦 | ✅ 已完成 |
+| Phase 4 | Risk Assessment — 變更風險量化 | ✅ 已完成 |
 
 ---
 
