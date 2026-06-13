@@ -282,6 +282,10 @@ export function analyzeImpact(
 /**
  * 去重：同一个 (testPath, ruleId) 被多次命中时，保留置信度最高的。
  * 不同 changedFile 的匹配会被合并，不丢失触发文件信息。
+ *
+ * 注意：此函数当前未被 analyzeImpact() 调用——
+ * 去重逻辑已在 aggregateMatches() 的 moduleMap 中处理。
+ * 保留以备将来需要独立去重时使用。
  */
 function dedupByTestPath(matches: ImpactMatch[]): ImpactMatch[] {
   const best = new Map<string, ImpactMatch>();

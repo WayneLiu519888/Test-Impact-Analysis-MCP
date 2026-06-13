@@ -229,7 +229,13 @@ export function getMonitorEntries(): MonitorEntry[] {
   const state = loadState();
 
   return config.repositories.map((repo) => {
-    const urlInfo = parseGitUrl(repo.url);
+    let urlInfo: GitUrlInfo;
+    try {
+      urlInfo = parseGitUrl(repo.url);
+    } catch (err: any) {
+      console.error(`[TIA] ⚠️ 仓库 "${repo.name}" 的 URL 无法解析，已跳过: ${err.message}`);
+      return null;
+    }
     const st = state[repo.name] ?? { lastSha: "", lastCheck: "", seenShas: [] };
 
     return {
@@ -243,7 +249,7 @@ export function getMonitorEntries(): MonitorEntry[] {
       seenShas: st.seenShas,
       snapshots: st.snapshots ?? [],
     };
-  });
+  }).filter((e): e is NonNullable<typeof e> => e !== null);
 }
 
 /** 获取单个合并条目 */

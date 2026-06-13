@@ -131,6 +131,16 @@ function ensureDir(dir: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o755 });
 }
 
+/** 校验外部来源 ID（MR ID / 分支名），防止路径遍历攻击 */
+function validateFsSafeId(id: string, label: string): void {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(id)) {
+    throw new Error(`${label} 包含非法字符: "${id}"（仅允许字母/数字/点/下划线/连字符）`);
+  }
+  if (id === ".." || id === ".") {
+    throw new Error(`${label} 不能为 "." 或 ".."`);
+  }
+}
+
 // ═══════════════════════════════════════════════════════
 // 远程模式指令构建
 // ═══════════════════════════════════════════════════════
@@ -198,7 +208,8 @@ async function fullClone(repo: MonitorEntry, repoBasePath: string, force: boolea
     await runGit(undefined, ["clone", "--branch", repo.branch, "--single-branch", repo.url, targetPath]);
     return ok(`✅ 全量克隆完成\n   仓库: ${repo.name}  [模块: ${repo.module || "?"}]\n   分支: ${repo.branch}\n   路径: ${targetPath}\n   类型: ${repo.repoType}`);
   } catch (err: any) {
-    try { rmSync(targetPath, { recursive: true, force: true }); } catch {}
+    try { rmSync(targetPath, { recursive: true, force: true }); }
+    catch { console.error(`[TIA] ⚠️ 克隆失败后清理异常: ${targetPath}`); }
     throw err;
   }
 }
@@ -231,6 +242,7 @@ async function incrementalClone(
   let cloned = 0, skipped = 0, failed = 0;
   const details: string[] = [];
   for (const mr of mrs) {
+    validateFsSafeId(mr.id, `MR ${mr.id} ID`);
     const mrPath = join(repoBasePath, mr.id);
     if (existsSync(mrPath)) {
       if (force) { rmSync(mrPath, { recursive: true, force: true }); }
@@ -245,7 +257,8 @@ async function incrementalClone(
     } catch (err: any) {
       failed++;
       details.push(`  ❌ MR !${mr.id}: 克隆失败 — ${err.message}`);
-      try { rmSync(mrPath, { recursive: true, force: true }); } catch {}
+      try { rmSync(mrPath, { recursive: true, force: true }); }
+      catch { console.error(`[TIA] ⚠️ 清理失败: ${mrPath}`); }
     }
   }
   const summary = [`📦 ${repo.name} 增量克隆完成 (${filterDesc})`, `   基础路径: ${branchClonePath}`, `   共找到 ${mrs.length} 个 MR`, `   成功: ${cloned}  |  跳过: ${skipped}  |  失败: ${failed}`, "", ...details];

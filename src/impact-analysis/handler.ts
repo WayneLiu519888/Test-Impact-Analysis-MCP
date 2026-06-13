@@ -8,6 +8,8 @@ import type { MonitorEntry } from "../types.js";
 import { loadImpactConfig } from "./state.js";
 import { analyzeImpact } from "./analyzer.js";
 import type { RepoImpactResult } from "./types.js";
+import { matchAnalyzers, getUnmatchedFiles } from "../analyzer-registry/registry.js";
+import type { AnalyzerResult } from "../analyzer-registry/types.js";
 
 // ═══════════════════════════════════════════════════════
 // 入口
@@ -29,14 +31,18 @@ export async function handleImpactAnalysis(
 
   const config = loadImpactConfig();
 
-  // 每个仓库分别分析
+  // 每个仓库分别分析（含分析器编织）
   const results: RepoImpactResult[] = [];
+  const analyzerResults: Map<string, AnalyzerResult[]> = new Map();
   const errors: string[] = [];
 
   for (const repo of repos) {
     try {
-      const result = await analyzeRepo(repo, fromSha, toSha, config);
-      results.push(result);
+      const { impact, analyzers } = await analyzeRepo(repo, fromSha, toSha, config);
+      results.push(impact);
+      if (analyzers.length > 0) {
+        analyzerResults.set(repo.name, analyzers);
+      }
     } catch (err: any) {
       errors.push(`${repo.name}: ${err.message}`);
     }
@@ -46,7 +52,7 @@ export async function handleImpactAnalysis(
     return ok("❌ 影响分析失败:\n" + errors.map((e) => `  - ${e}`).join("\n"));
   }
 
-  return formatResults(results, errors);
+  return formatResults(results, analyzerResults, errors);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -58,7 +64,7 @@ async function analyzeRepo(
   fromShaOverride: string | undefined,
   toShaOverride: string | undefined,
   config: ReturnType<typeof loadImpactConfig>
-): Promise<RepoImpactResult> {
+): Promise<{ impact: RepoImpactResult; analyzers: AnalyzerResult[] }> {
   const adapter = getAdapter(repo.platform);
 
   // 1. 确定 SHA 范围
@@ -73,12 +79,15 @@ async function analyzeRepo(
 
   if (from === to) {
     return {
-      repoName: repo.name,
-      fromSha: from.slice(0, 7),
-      toSha: to.slice(0, 7),
-      changedFiles: [],
-      impactedModules: [],
-      matches: [],
+      impact: {
+        repoName: repo.name,
+        fromSha: from.slice(0, 7),
+        toSha: to.slice(0, 7),
+        changedFiles: [],
+        impactedModules: [],
+        matches: [],
+      },
+      analyzers: [],
     };
   }
 
@@ -91,14 +100,50 @@ async function analyzeRepo(
 
   const changedFiles = await adapter.getDiffFiles(repo, from, to);
 
-  // 3. 执行影响分析
-  return analyzeImpact(
+  // 3. 分析器编织：匹配并调用下游分析器
+  const analyzerOutputs: AnalyzerResult[] = [];
+  const matched = matchAnalyzers(changedFiles);
+
+  for (const { adapter: anaAdapter, matchedFiles } of matched) {
+    try {
+      const result = await anaAdapter.analyze(repo, matchedFiles, from, to);
+      if (result) {
+        analyzerOutputs.push(result);
+      } else {
+        // 分析器返回 null = 不可用，记录降级状态
+        analyzerOutputs.push({
+          analyzerId: anaAdapter.id,
+          analyzerName: anaAdapter.name,
+          impactedItems: [],
+          degraded: true,
+        });
+      }
+    } catch {
+      // 分析器异常 = 降级
+      analyzerOutputs.push({
+        analyzerId: anaAdapter.id,
+        analyzerName: anaAdapter.name,
+        impactedItems: [],
+        degraded: true,
+      });
+    }
+  }
+
+  // 4. 文件级 glob 匹配：仅对未被任何分析器处理的文件
+  const unmatchedFiles = getUnmatchedFiles(
+    changedFiles,
+    matched.map((m) => ({ matchedFiles: m.matchedFiles }))
+  );
+
+  const impact = analyzeImpact(
     repo.name,
     from.slice(0, 7),
     to.slice(0, 7),
-    changedFiles,
+    unmatchedFiles,
     config
   );
+
+  return { impact, analyzers: analyzerOutputs };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -113,6 +158,7 @@ const RISK_ICONS: Record<string, string> = {
 
 function formatResults(
   results: RepoImpactResult[],
+  analyzerResults: Map<string, AnalyzerResult[]>,
   errors: string[]
 ): ToolResult {
   const lines: string[] = [
@@ -128,6 +174,16 @@ function formatResults(
     totalImpacted += r.impactedModules.length;
 
     lines.push(`📦 ${r.repoName}  (${r.fromSha} → ${r.toSha})`);
+
+    // ── 分析器状态 ──
+    const repoAnalyzers = analyzerResults.get(r.repoName) ?? [];
+    for (const ar of repoAnalyzers) {
+      if (ar.degraded) {
+        lines.push(`   ⚠️ ${ar.analyzerName} [${ar.analyzerId}]: 不可用，已降级为文件匹配`);
+      } else if (ar.impactedItems.length > 0) {
+        lines.push(`   🧠 ${ar.analyzerName} [${ar.analyzerId}]: ${ar.impactedItems.length} 个语义分析项`);
+      }
+    }
 
     if (r.changedFiles.length === 0) {
       lines.push("   📭 无变更文件", "");

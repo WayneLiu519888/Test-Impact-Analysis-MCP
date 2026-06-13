@@ -14,7 +14,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { createHash, timingSafeEqual, randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { AsyncLocalStorage } from "async_hooks";
 import { join } from "path";
 import type { IncomingMessage } from "http";
@@ -277,17 +277,12 @@ export function verifyApiKey(
 ): ApiKeyEntry | null {
   if (!providedKey || apiKeys.length === 0) return null;
 
+  // SHA-256 哈希比对。SHA-256 的第二原像抗性（preimage resistance）
+  // 使得字符串全等比较不会泄露关于正确 key 的任何信息，无需 timingSafeEqual。
   const keyHash = `sha256:${sha256(providedKey)}`;
 
   for (const entry of apiKeys) {
-    // 快速哈希比对，命中后再用 timingSafeEqual 防时序攻击
-    if (entry.hash === keyHash) {
-      const entryBuf = Buffer.from(entry.hash, "utf-8");
-      const keyBuf = Buffer.from(keyHash, "utf-8");
-      if (entryBuf.length === keyBuf.length && timingSafeEqual(entryBuf, keyBuf)) {
-        return entry;
-      }
-    }
+    if (entry.hash === keyHash) return entry;
   }
 
   return null;

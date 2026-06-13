@@ -56,27 +56,30 @@ export class GenericGitAdapter implements PlatformAdapter {
       "User-Agent": "git-monitor-mcp/1.0",
     };
 
-    switch (repo.auth?.type) {
-      case "token":
-        h.Authorization = `Bearer ${(repo.auth as any).token}`;
-        break;
+    const auth = repo.auth;
+    if (auth) {
+      switch (auth.type) {
+        case "token":
+          h.Authorization = `Bearer ${auth.token}`;
+          break;
 
-      case "rsa": {
-        // RSA 签名模式：签名 (method + path + timestamp) 放 Authorization 头
-        const timestamp = Math.floor(Date.now() / 1000).toString();
-        const toSign = `${method.toUpperCase()}\n${path}\n${timestamp}`;
-        const keyPath = (repo.auth as any).privateKeyPath;
-        const privateKey = readFileSync(keyPath, "utf-8");
-        const sign = createSign("RSA-SHA256");
-        sign.update(toSign);
-        sign.end();
-        const signature = sign.sign(privateKey, "base64");
-        h.Authorization = `RSA-SHA256 timestamp=${timestamp},signature=${signature}`;
-        break;
+        case "rsa": {
+          // RSA 签名模式：签名 (method + path + timestamp) 放 Authorization 头
+          const timestamp = Math.floor(Date.now() / 1000).toString();
+          const toSign = `${method.toUpperCase()}\n${path}\n${timestamp}`;
+          const keyPath = auth.privateKeyPath;
+          const privateKey = readFileSync(keyPath, "utf-8");
+          const sign = createSign("RSA-SHA256");
+          sign.update(toSign);
+          sign.end();
+          const signature = sign.sign(privateKey, "base64");
+          h.Authorization = `RSA-SHA256 timestamp=${timestamp},signature=${signature}`;
+          break;
+        }
+
+        case "none":
+          break;
       }
-
-      case "none":
-        break;
     }
 
     return h;
@@ -194,8 +197,9 @@ export class GenericGitAdapter implements PlatformAdapter {
       repo.branch
     );
 
-    const sep = apiPath.includes("?") ? "&" : "?";
-    const raw = await this.api(repo, `${apiPath}${sep}per_page=100`);
+    const params = new URLSearchParams({ per_page: "100" });
+    const url = `${apiPath}${apiPath.includes("?") ? "&" : "?"}${params.toString()}`;
+    const raw = await this.api(repo, url);
     const all = this.extractArray(raw).map((c: any) => this.parseCommit(c));
 
     // 本地过滤：找到 base 的位置，取它之后的所有提交
@@ -224,8 +228,9 @@ export class GenericGitAdapter implements PlatformAdapter {
       repo.branch
     );
 
-    const sep = apiPath.includes("?") ? "&" : "?";
-    const raw = await this.api(repo, `${apiPath}${sep}per_page=${Math.min(count, 100)}`);
+    const params = new URLSearchParams({ per_page: String(Math.min(count, 100)) });
+    const url = `${apiPath}${apiPath.includes("?") ? "&" : "?"}${params.toString()}`;
+    const raw = await this.api(repo, url);
     return this.extractArray(raw).map((c: any) => this.parseCommit(c));
   }
 
@@ -297,11 +302,11 @@ export class GenericGitAdapter implements PlatformAdapter {
     const maxPages = 5;
     let page = 1;
 
-    // 辅助：构建分页 URL
+    // 辅助：构建分页 URL，用 URLSearchParams 确保参数正确覆盖
     const buildMrUrl = (p: number): string => {
       const base = this.buildUrl(cfg.mrApiTemplate!, repo, repo.branch);
-      const sep = base.includes("?") ? "&" : "?";
-      return `${base}${sep}per_page=${perPage}&page=${p}`;
+      const params = new URLSearchParams({ per_page: String(perPage), page: String(p) });
+      return `${base}${base.includes("?") ? "&" : "?"}${params.toString()}`;
     };
 
     // —— sinceDate 模式 ——
@@ -424,8 +429,9 @@ export class GenericGitAdapter implements PlatformAdapter {
       repo,
       repo.branch
     );
-    const sep = apiPath.includes("?") ? "&" : "?";
-    const raw = await this.api(repo, `${apiPath}${sep}per_page=100`);
+    const params = new URLSearchParams({ per_page: "100" });
+    const url = `${apiPath}${apiPath.includes("?") ? "&" : "?"}${params.toString()}`;
+    const raw = await this.api(repo, url);
     const all = this.extractArray(raw);
 
     // 找到 base 之后的所有 commit

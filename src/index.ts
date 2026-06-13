@@ -22,10 +22,12 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import type { IncomingMessage, ServerResponse } from "http";
 import { handleToolCall, setTransportMode, TRANSPORT, getTransportMode, getFilteredSchemas } from "./tools/index.js";
 import { ensureConfigFile, validateConfig, listRepoConfigs } from "./state.js";
 import { ensureServerConf, checkIpAccess, checkOriginAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
 import { ensureImpactConfig } from "./impact-analysis/state.js";
+import { ensureAnalyzerConfig } from "./analyzer-registry/state.js";
 
 /**
  * Express 请求/响应的最小类型声明。
@@ -46,6 +48,7 @@ interface ExpressRes {
 
 ensureConfigFile();
 ensureImpactConfig();
+ensureAnalyzerConfig();
 
 const errors = validateConfig();
 if (errors.length > 0) {
@@ -150,7 +153,7 @@ async function startHttpMode() {
 
     // API KEY 预校验（工具层根据工具名决定是否放行）
     const clientIp = getClientIp(
-      { headers: req.headers, socket: req.socket } as any,
+      { headers: req.headers, socket: req.socket } as IncomingMessage,
       serverConf.xForwardedFor ?? false
     );
     const providedKey = stringHeader(req.headers, "x-api-key");
@@ -171,7 +174,7 @@ async function startHttpMode() {
 
   // 所有 /mcp 请求交由 transport 处理（GET=SSE 流, POST=JSON-RPC）
   app.all("/mcp", async (req: ExpressReq, res: ExpressRes) => {
-    await transport.handleRequest(req as any, res as any, req.body);
+    await transport.handleRequest(req as IncomingMessage, res as unknown as ServerResponse, req.body);
   });
 
   // ── 健康检查 ──

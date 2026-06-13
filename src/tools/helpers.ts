@@ -43,10 +43,16 @@ export const TRANSPORT = {
   HTTP: "http" as const,
 } as const;
 
-let _transportMode: TransportMode = TRANSPORT.STDIO;
+let _transportMode: TransportMode | null = null;
 
-export function setTransportMode(mode: TransportMode): void { _transportMode = mode; }
-export function getTransportMode(): TransportMode { return _transportMode; }
+export function setTransportMode(mode: TransportMode): void {
+  if (_transportMode !== null) throw new Error("transport mode 已在启动时锁定，不可更改");
+  _transportMode = mode;
+}
+export function getTransportMode(): TransportMode {
+  if (_transportMode === null) throw new Error("transport mode 尚未初始化");
+  return _transportMode;
+}
 
 // ═══════════════════════════════════════════════════════
 // 响应辅助
@@ -104,7 +110,9 @@ export function throttleTouchApiKey(entry: import("../types.js").ApiKeyEntry): v
     const conf = loadServerConf();
     touchApiKey(conf.apiKeys, entry);
     saveServerConf(conf);
-  } catch { /* 非关键操作，失败静默 */ }
+  } catch (err: any) {
+    console.error(`[TIA] ⚠️ 更新 API KEY lastUsed 失败: ${err.message}`);
+  }
 
   // 定期清理过期的计时器条目，防止 Map 无限增长
   if (_keyTouchTimers.size > 100) {

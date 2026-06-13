@@ -4,9 +4,19 @@
 
 import { ok, requireString, optionalString, resolveRepos } from "./helpers.js";
 import { getMonitorEntries, updateWatermark, resetWatermark } from "../state.js";
-import type { MonitorEntry } from "../types.js";
+import type { MonitorEntry, AuthConfig } from "../types.js";
 import { getAdapter } from "./helpers.js";
 import type { ToolResult } from "./helpers.js";
+
+/** 安全展示认证信息（仅暴露 token 前 4 位，防止日志泄露） */
+function getAuthDisplay(auth?: AuthConfig): string {
+  if (!auth) return "none";
+  switch (auth.type) {
+    case "token": return `token:${auth.token.slice(0, 4)}...`;
+    case "rsa": return "rsa";
+    case "none": return "none";
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // 路由
@@ -36,7 +46,7 @@ function statusAction(args: Record<string, unknown>): ToolResult {
   const lines = repos.map((m) => {
     const time = m.lastCheck ? new Date(m.lastCheck).toLocaleString("zh-CN") : "未检查";
     const sha  = m.lastSha ? m.lastSha.slice(0, 7) : "待初始化";
-    const auth = m.auth?.type === "token" ? `token:${(m.auth as any).token?.slice(0, 8)}...` : m.auth?.type === "rsa" ? "rsa" : "none";
+    const auth = getAuthDisplay(m.auth);
     const snaps = m.snapshots ?? [];
     const lastSnap = snaps.length > 0
       ? `\n   最近重置: "${snaps[0].label}" (${snaps[0].prevSha === "(首次)" ? "首次" : snaps[0].prevSha.slice(0, 7)} → ${snaps[0].newSha.slice(0, 7)})`
