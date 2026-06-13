@@ -1,0 +1,74 @@
+#!/bin/bash
+# TIA 信息安全 pre-commit 检查
+set -e
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; NC='\033[0m'
+echo "[TIA-SEC] 正在检查提交内容..."
+
+VIOLATIONS=0
+
+# 只检查新增(A)和修改(M)的文件，跳过删除(D)和重命名(R)
+ADDED_OR_MODIFIED=$(git diff --cached --name-only --diff-filter=AM)
+
+# 规则1: enterprise/ 目录绝不允许被跟踪（新增/修改都不行）
+if echo "$ADDED_OR_MODIFIED" | grep -q "^enterprise/"; then
+  echo -e "${RED}[TIA-SEC] ❌ 禁止提交 enterprise/ 目录${NC}"
+  VIOLATIONS=1
+fi
+
+# 规则2: 禁止真实工号模式（仅检查新增/修改的非文档文件）
+if [ -n "$ADDED_OR_MODIFIED" ]; then
+  for f in $ADDED_OR_MODIFIED; do
+    # 跳过蓝图、规划、设计文档
+    case "$f" in
+      .claude/plans/*|gan-harness/*|CLAUDE.md)
+        continue ;;
+    esac
+    if git show ":$f" 2>/dev/null | grep -q "l[0-9]\{8\}"; then
+      echo -e "${RED}[TIA-SEC] ❌ $f — 疑似员工工号，请替换为 <YOUR-CONTACT-ID>${NC}"
+      VIOLATIONS=1
+    fi
+  done
+fi
+
+# 规则3: 禁止企业内部域名（仅检查新增/修改的配置/源码文件，跳过蓝图文档）
+if [ -n "$ADDED_OR_MODIFIED" ]; then
+  for f in $ADDED_OR_MODIFIED; do
+    case "$f" in
+      .claude/plans/*|gan-harness/*|CLAUDE.md|*.md|docs/*)
+        continue ;;
+    esac
+    if git show ":$f" 2>/dev/null | grep -q "codehub\.huawei\.com"; then
+      echo -e "${RED}[TIA-SEC] ❌ $f — 企业内部域名，请替换为 <YOUR-GIT-HOST> 或放入 enterprise/${NC}"
+      VIOLATIONS=1
+    fi
+  done
+fi
+
+# 规则4: 禁止 Windows 绝对路径（仅检查新增/修改，跳过文档/计划文件）
+if [ -n "$ADDED_OR_MODIFIED" ]; then
+  for f in $ADDED_OR_MODIFIED; do
+    case "$f" in
+      .claude/plans/*|gan-harness/*|*.md|docs/*)
+        continue ;;
+    esac
+    if git show ":$f" 2>/dev/null | grep -qE "[A-Za-z]:/(Users|Program|Workspace|Wayne)"; then
+      echo -e "${RED}[TIA-SEC] ❌ $f — Windows 绝对路径，请使用相对路径${NC}"
+      VIOLATIONS=1
+    fi
+  done
+fi
+
+# 规则5: 禁止新增 monitors.conf.json 到根目录（D 状态放行）
+if echo "$ADDED_OR_MODIFIED" | grep -q "^monitors.conf.json$"; then
+  echo -e "${RED}[TIA-SEC] ❌ 请将 monitors.conf.json 放在 enterprise/ 目录${NC}"
+  VIOLATIONS=1
+fi
+
+if [ $VIOLATIONS -eq 0 ]; then
+  echo -e "${GREEN}[TIA-SEC] ✅ 检查通过${NC}"
+  exit 0
+else
+  echo -e "${RED}[TIA-SEC] ❌ 提交被阻止，请修复以上问题${NC}"
+  exit 1
+fi

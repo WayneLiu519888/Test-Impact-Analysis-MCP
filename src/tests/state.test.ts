@@ -28,8 +28,8 @@ describe("parseGitUrl", () => {
     });
 
     it("CodeHub 风格", () => {
-      deepStrictEqual(parseGitUrl("git@codehub.huawei.com:myproject/order-service.git"), {
-        host: "codehub.huawei.com", owner: "myproject", repo: "order-service",
+      deepStrictEqual(parseGitUrl("git@git.example.com:demo/project.git"), {
+        host: "git.example.com", owner: "demo", repo: "project",
       });
     });
   });

@@ -47,7 +47,6 @@ export async function handleTestRecommendation(
     );
   }
 
-  const config = loadImpactConfig();
   const recommendations: TestRecommendation[] = [];
   const errors: string[] = [];
 
@@ -58,6 +57,13 @@ export async function handleTestRecommendation(
       if (!from) throw new Error("仓库尚未初始化水位。");
       const to = toSha || (await adapter.getHeadSha(repo));
       if (!adapter.getDiffFiles) throw new Error(`平台 "${repo.platform}" 不支持 diff`);
+
+      const config = loadImpactConfig({
+        name: repo.name,
+        module: repo.module,
+        repoType: repo.repoType,
+        platform: repo.platform,
+      });
 
       const changedFiles = await adapter.getDiffFiles(repo, from, to);
       const impact = analyzeImpact(repo.name, from.slice(0, 7), to.slice(0, 7), changedFiles, config);

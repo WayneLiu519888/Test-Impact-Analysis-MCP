@@ -19,9 +19,15 @@ import { AsyncLocalStorage } from "async_hooks";
 import { join } from "path";
 import type { IncomingMessage } from "http";
 import type { ServerConf, ApiKeyEntry } from "./types.js";
-import { PROJECT_ROOT } from "./paths.js";
+import { PROJECT_ROOT, resolveConfigPath } from "./paths.js";
 
-const SERVER_CONF_FILE = join(PROJECT_ROOT, "server.conf.json");
+/**
+ * 配置文件路径（延迟求值 — 首次调用时解析）。
+ * 避免 import 阶段因配置文件缺失导致进程崩溃。
+ */
+function getServerConfPath(): string {
+  return resolveConfigPath("server.conf.json");
+}
 
 // ═══════════════════════════════════════════════════════════
 // 配置文件读写
@@ -39,10 +45,10 @@ const DEFAULT_SERVER_CONF: ServerConf = {
 
 /** 读取服务端配置文件 */
 export function loadServerConf(): ServerConf {
-  if (!existsSync(SERVER_CONF_FILE)) {
+  if (!existsSync(getServerConfPath())) {
     return structuredClone(DEFAULT_SERVER_CONF);
   }
-  const raw = readFileSync(SERVER_CONF_FILE, "utf-8");
+  const raw = readFileSync(getServerConfPath(), "utf-8");
   try {
     const parsed = JSON.parse(raw);
     return {
@@ -63,7 +69,7 @@ export function loadServerConf(): ServerConf {
 
 /** 写入服务端配置文件 */
 export function saveServerConf(conf: ServerConf): void {
-  writeFileSync(SERVER_CONF_FILE, JSON.stringify(conf, null, 2), { encoding: "utf-8", mode: 0o600 });
+  writeFileSync(getServerConfPath(), JSON.stringify(conf, null, 2), { encoding: "utf-8", mode: 0o600 });
 }
 
 /**
@@ -71,7 +77,7 @@ export function saveServerConf(conf: ServerConf): void {
  * 在 HTTP 模式启动时调用。
  */
 export function ensureServerConf(): ServerConf {
-  if (!existsSync(SERVER_CONF_FILE)) {
+  if (!existsSync(getServerConfPath())) {
     saveServerConf(structuredClone(DEFAULT_SERVER_CONF));
     console.error(`[TIA] 已创建 server.conf.json 种子文件`);
     console.error(`[TIA] 请编辑此文件配置 IP 白名单和 Origin 白名单。API KEY 由 TIA-init 工具自动签发。`);

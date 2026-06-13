@@ -24,10 +24,10 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { IncomingMessage, ServerResponse } from "http";
 import { handleToolCall, setTransportMode, TRANSPORT, getTransportMode, getFilteredSchemas } from "./tools/index.js";
+import { ensureEnterpriseDir } from "./paths.js";
 import { ensureConfigFile, validateConfig, listRepoConfigs } from "./state.js";
 import { ensureServerConf, checkIpAccess, checkOriginAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
 import { ensureImpactConfig } from "./impact-analysis/state.js";
-import { ensureAnalyzerConfig } from "./analyzer-registry/state.js";
 
 /**
  * Express 请求/响应的最小类型声明。
@@ -46,9 +46,10 @@ interface ExpressRes {
 
 // ─── 启动前校验 ──────────────────────────────────────
 
+// 首先确保企业配置目录存在，后续配置文件读取依赖此目录
+ensureEnterpriseDir();
 ensureConfigFile();
 ensureImpactConfig();
-ensureAnalyzerConfig();
 
 const errors = validateConfig();
 if (errors.length > 0) {

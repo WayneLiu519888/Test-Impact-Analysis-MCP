@@ -11,9 +11,29 @@
 /** 风险等级 */
 export type RiskLevel = "high" | "medium" | "low";
 
+/** 规则适用范围筛选条件 */
+export interface AppliesToFilter {
+  /** 按仓库别名筛选（精确匹配，不传则不限） */
+  names?: string[];
+  /** 按业务模块名筛选（不传则不限） */
+  modules?: string[];
+  /** 按仓库类型筛选（frontend / backend） */
+  repoTypes?: string[];
+  /** 按 Git 平台筛选（github / local / generic） */
+  platforms?: string[];
+}
+
+/** 规则筛选时需要的仓库上下文（从 MonitorEntry 中提取的最小子集） */
+export interface RuleFilterContext {
+  name: string;
+  module: string;
+  repoType: string;
+  platform: string;
+}
+
 /** 单条影响分析规则 */
 export interface ImpactRule {
-  /** 规则唯一 ID */
+  /** 规则唯一 ID（企业规则建议 ent- 前缀，避免与通用规则冲突） */
   id: string;
   /** 规则名称（人类可读） */
   name: string;
@@ -25,6 +45,8 @@ export interface ImpactRule {
   testPaths: string[];
   /** 风险等级 */
   riskLevel: RiskLevel;
+  /** 规则适用范围筛选。不传 = 适用所有仓库（通用规则特征）。企业级规则通常有此字段。 */
+  appliesTo?: AppliesToFilter;
 }
 
 /** 自动推断配置 */

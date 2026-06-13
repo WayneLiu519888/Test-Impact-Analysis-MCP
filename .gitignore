@@ -1,6 +1,15 @@
 # 依赖
 node_modules/
 
+# === 企业配置层（核心安全 — 双重保险） ===
+enterprise/
+
+# === 本地敏感配置（防止未放 enterprise/ 直接放根目录） ===
+server.conf.json
+monitors.conf.json
+.mcp.json
+.claude/settings.local.json
+
 # 运行时状态（由程序自动维护，不应提交）
 monitors.json
 

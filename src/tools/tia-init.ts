@@ -32,7 +32,7 @@ function getCmdBundles(): CmdBundle[] {
   _cmdBundles = [
     readCmdBundle("claude", "Claude Code", ".claude/commands/", (f) => `.claude/commands/${f}`),
     readCmdBundle("opencode", "OpenCode", ".opencode/commands/", (f) => `.opencode/commands/${f}`),
-    readCmdBundle("codex", "Codex (OpenAI)", ".agents/skills/", (f) => `.agents/skills/${f.replace(".md", "")}/SKILL.md`),
+    readCmdBundle("codex", "Codex (OpenAI)", ".codex/skills/", (f) => `.codex/skills/${f.replace(".md", "")}/SKILL.md`),
   ];
   return _cmdBundles;
 }

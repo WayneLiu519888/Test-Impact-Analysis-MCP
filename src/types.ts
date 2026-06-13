@@ -198,7 +198,7 @@ export interface ServerConf {
   allowedOrigins?: string[];
   /** 是否信任 X-Forwarded-For 头（反向代理场景）。默认 false。 */
   xForwardedFor?: boolean;
-  /** 联系人信息。IP 拦截时提示给客户端，如 "l30026134"。 */
+  /** 联系人信息。IP 拦截时提示给客户端，如 "<YOUR-CONTACT-ID>"。 */
   contactInfo?: string;
   /** API KEY 列表。TIA-init 签发的 key 存储于此，服务端仅存哈希。 */
   apiKeys: ApiKeyEntry[];

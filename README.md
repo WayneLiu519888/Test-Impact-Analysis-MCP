@@ -35,6 +35,62 @@ Exposes test analysis capabilities to Claude Code, OpenCode, Codex, and other AI
 ---
 
 ## 🚀 快速开始 / Quick Start
+---
+
+## 🏗️ 初始化与安全
+
+> ⚠️ **首次使用必读** — clone 后只需 3 步即可安全使用，企业敏感配置永不泄露。
+
+### 1. 初始化（3 步上手）
+
+```bash
+# 第 1 步：克隆仓库
+git clone git@github.com:xxx/TIA.git && cd TIA
+
+# 第 2 步：安装依赖（自动安装 git hooks）
+npm install
+
+# 第 3 步：配置你的仓库
+cp examples/monitors.conf.example.json enterprise/monitors.conf.json
+vim enterprise/monitors.conf.json   # 填入你要监控的仓库信息
+```
+
+### 2. 安全边界（三层防护）
+
+TIA 严格区分**源码层**与**企业配置层**，确保企业内部信息永远不会提交到 GitHub：
+
+```
+┌──────────────────────────────────────────────┐
+│  GitHub 仓库（源码层 — 安全可提交）             │
+│  src/  docs/  examples/  CLAUDE.md  README   │
+├──────────────────────────────────────────────┤
+│  enterprise/  ← 🔒 企业配置层（永不提交）       │
+│  monitors.conf.json  server.conf.json 等      │
+│  ⚠️ 整个目录被 .gitignore 排除                │
+└──────────────────────────────────────────────┘
+```
+
+| 防线 | 触发时机 | 机制 |
+|------|----------|------|
+| **第 1 层** | 文件落盘 | `.gitignore` 排除 `enterprise/` 及根目录敏感文件 |
+| **第 2 层** | `git commit` | `.githooks/pre-commit` 5 条规则实时拦截 |
+| **第 3 层** | `git push` / PR | `.github/workflows/security-check.yml` CI 自动扫描 |
+
+### 3. 双环境无感切换
+
+```
+【在家 → GitHub】            【公司 → 内网分析】
+git push → GitHub          git clone TIA（只读）
+源码层不含企业信息 ✅         enterprise/ 配企业仓库
+                           拉代码 → 分析 → 不推送 ✅
+```
+
+### 4. 验证安装
+
+```bash
+npm run security-check   # 源码层应显示 ✅ 自查通过
+npm test                 # 83 个测试应全部通过
+```
 
 <details>
 <summary><b>🇨🇳 简体中文</b></summary>
@@ -113,24 +169,28 @@ Choose your language for the full documentation:
 
 ```
 Test-Impact-Analysis-mcp/
-├── src/                        # 核心源码 / Core source
-│   ├── index.ts                # MCP Server 入口 + Transport 双模
-│   ├── state.ts                # 配置/状态读写、水位管理
-│   ├── types.ts                # 共享类型定义
-│   ├── security.ts             # IP 白名单 + API KEY 安全
-│   ├── tools/                  # MCP 工具模块 / Tool routing (6 tools)
-│   ├── impact-analysis/        # Phase 2-4: 影响分析/推荐/风险评估
-│   ├── platforms/              # Git 平台适配器层
-│   └── tests/                  # 单元测试 (78 个)
 │
-├── .claude/commands/           # Claude Code 斜杠命令
-├── .opencode/commands/         # OpenCode 命令
-├── .agents/skills/             # Codex 技能
+├── 📦 源码层（提交到 GitHub）
+│   ├── src/                    # 核心源码 / Core source
+│   ├── docs/                   # 文档 / Documentation
+│   ├── examples/               # 配置模板 / Config templates
+│   ├── scripts/                # 工具脚本 / Utility scripts
+│   ├── .githooks/              # Git 安全钩子 / Security hooks
+│   ├── .github/workflows/      # CI 安全扫描 / CI security scan
+│   ├── .claude/commands/       # Claude Code 命令
+│   ├── .opencode/commands/     # OpenCode 命令
+│   ├── .codex/skills/         # Codex 技能
+│   ├── README.md               # 项目入口
+│   └── impact-rules.conf.json  # 影响分析规则（示例）
 │
-├── monitors.conf.json          # 用户手写仓库监控配置
-├── monitors.json               # 程序维护水位状态
-├── impact-rules.conf.json      # 影响分析规则配置
-└── server.conf.json            # HTTP 模式安全配置
+├── 🔒 企业配置层（.gitignore 排除，永不提交）
+│   └── enterprise/             # 你的真实配置放这里
+│       ├── monitors.conf.json
+│       ├── server.conf.json
+│       └── .mcp.json
+│
+└── 🚫 运行时产物（.gitignore 排除）
+    └── monitors.json           # 程序维护的水位状态
 ```
 
 ---
@@ -146,6 +206,10 @@ Test-Impact-Analysis-mcp/
 | Phase 2 | Impact Analysis — 代码变更影响分析 | ✅ |
 | Phase 3 | Test Recommendation — 智能测试推荐 | ✅ |
 | Phase 4 | Risk Assessment — 变更风险量化 | ✅ |
+| Phase 5a | Analyzer Registry — MCP 编织层 | ✅ |
+| Phase 5b | JACG 调用链分析（双模引擎 + 融合引擎） | 🔜 |
+| Phase 5c | SQL / Perf / Python / Go 分析器横向扩展 | 💡 |
+| Phase 6 | 信息安全分层重构 — enterprise/ 隔离 | ✅ |
 
 ---
 

@@ -1,0 +1,18 @@
+{
+  "_comment": "复制此文件到 enterprise/impact-rules.conf.json 并填入自定义规则（可选）",
+  "rules": [
+    {
+      "id": "example-auth",
+      "description": "示例：认证相关代码变更 → 运行认证测试",
+      "filePatterns": ["src/auth/**", "src/login/**"],
+      "testPaths": ["tests/auth/login.test.ts", "tests/auth/register.test.ts"],
+      "riskLevel": "high"
+    }
+  ],
+  "autoInfer": {
+    "enabled": true,
+    "sourceToTestMapping": {
+      "src/": "tests/"
+    }
+  }
+}

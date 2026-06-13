@@ -27,6 +27,62 @@
 ---
 
 ## 🎯 專案定位
+---
+
+## 🏗️ 初始化與安全
+
+> ⚠️ **首次使用必讀** — clone 後只需 3 步即可安全使用，企業敏感設定永不外洩。
+
+### 1. 初始化（3 步上手）
+
+```bash
+# 第 1 步：複製倉庫
+git clone git@github.com:xxx/TIA.git && cd TIA
+
+# 第 2 步：安裝依賴（自動安裝 git hooks）
+npm install
+
+# 第 3 步：設定你的倉庫
+cp examples/monitors.conf.example.json enterprise/monitors.conf.json
+vim enterprise/monitors.conf.json   # 填入你要監控的倉庫資訊
+```
+
+### 2. 安全邊界（三層防護）
+
+TIA 嚴格區分**原始碼層**與**企業設定層**，確保企業內部資訊永遠不會提交到 GitHub：
+
+```
+┌──────────────────────────────────────────────┐
+│  GitHub 倉庫（原始碼層 — 安全可提交）           │
+│  src/  docs/  examples/  CLAUDE.md  README   │
+├──────────────────────────────────────────────┤
+│  enterprise/  ← 🔒 企業設定層（永不提交）       │
+│  monitors.conf.json  server.conf.json 等      │
+│  ⚠️ 整個目錄被 .gitignore 排除                │
+└────────────────────────────────────────────┘
+```
+
+| 防線 | 觸發時機 | 機制 |
+|------|----------|------|
+| **第 1 層** | 檔案落盤 | `.gitignore` 排除 `enterprise/` 及根目錄敏感檔案 |
+| **第 2 層** | `git commit` | `.githooks/pre-commit` 5 條規則即時攔截 |
+| **第 3 層** | `git push` / PR | `.github/workflows/security-check.yml` CI 自動掃描 |
+
+### 3. 雙環境無感切換
+
+```
+【在家 → GitHub】            【公司 → 內網分析】
+git push → GitHub          git clone TIA（唯讀）
+原始碼層不含企業資訊 ✅       enterprise/ 配企業倉庫
+                           拉程式碼 → 分析 → 不推送 ✅
+```
+
+### 4. 驗證安裝
+
+```bash
+npm run security-check   # 原始碼層應顯示 ✅ 自查通過
+npm test                 # 83 個測試應全部通過
+```
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -55,15 +111,15 @@
 │  │  └─ 設定/狀態分離 + seenShas 去重              │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ 模組 2: Impact Analysis (🔜 規劃中)            │     │
+│  │ 模組 2: Impact Analysis (✅ 已實作)            │     │
 │  │  └─ 程式碼變更 → 受影響模組/用例分析            │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ 模組 3: Test Recommendation (💡 規劃中)        │     │
+│  │ 模組 3: Test Recommendation (✅ 已實作)        │     │
 │  │  └─ 基於變更智慧推薦測試用例                    │     │
 │  └─────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────┐     │
-│  │ 模組 4: Risk Assessment (💡 規劃中)            │     │
+│  │ 模組 4: Risk Assessment (✅ 已實作)            │     │
 │  │  └─ 變更風險量化與報告                          │     │
 │  └─────────────────────────────────────────────┘     │
 └──────────────────────────────────────────────────────┘
@@ -120,7 +176,7 @@ TIA-init(agentType="ClaudeCode")
   "repositories": [
     {
       "name": "my-backend",
-      "url": "git@github.com:myteam/backend.git",
+      "url": "git@github.com:<YOUR-ORG>/example-backend.git",
       "platform": "github",
       "branch": "main",
       "repoType": "backend",
@@ -155,30 +211,27 @@ TIA-init(agentType="ClaudeCode")
 ```
 Test-Impact-Analysis-mcp/
 │
-├── src/                        # 核心原始碼
-│   ├── index.ts                # MCP Server 入口 + Transport 雙模啟動
-│   ├── tools.ts                # 3 個 Tool 的 Schema + 路由 + 處理函式
-│   ├── state.ts                # 設定/狀態讀寫、水位管理、快照歸檔
-│   ├── types.ts                # 共享型別定義
-│   └── platforms/              # Git 平台適配器層
-│       ├── types.ts            # PlatformAdapter 介面定義
-│       ├── github.ts           # GitHub REST API v3 適配器
-│       ├── generic.ts          # 通用 REST API 適配器（GitLab/CodeHub 等）
-│       └── local.ts            # 本地 git 命令適配器
+├── 📦 原始碼層（提交到 GitHub）
+│   ├── src/                        # 核心原始碼
+│   ├── docs/                       # 文件
+│   ├── examples/                   # 設定範本
+│   ├── scripts/                    # 工具腳本
+│   ├── .githooks/                  # Git 安全掛鉤
+│   ├── .github/workflows/          # CI 安全掃描
+│   ├── .claude/commands/           # Claude Code 斜線命令
+│   ├── .opencode/commands/         # OpenCode 命令
+│   ├── .codex/skills/             # Codex 技能
+│   ├── README.md                   # 專案入口
+│   └── impact-rules.conf.json      # 影響分析規則（範例）
 │
-├── .claude/commands/           # Claude Code 斜線命令
-│   ├── repo_monitor.md         # /repo_monitor — 統一監控入口
-│   ├── repo_clone.md           # /repo_clone — 統一副製入口
-│   ├── repo_status.md          # /repo_status — 檢視水位
-│   ├── repo_check.md           # /repo_check — 檢查更新
-│   └── repo_reset.md           # /repo_reset — 重置水位
+├── 🔒 企業設定層（.gitignore 排除，永不提交）
+│   └── enterprise/                 # 你的真實設定放這裡
+│       ├── monitors.conf.json
+│       ├── server.conf.json
+│       └── .mcp.json
 │
-├── .opencode/commands/         # OpenCode 命令
-├── .agents/skills/             # Codex 技能
-│
-├── monitors.conf.json          # 使用者手寫的倉庫監控設定
-├── monitors.json               # 程式維護的水位狀態檔案
-└── server.conf.json            # HTTP 模式安全設定
+└── 🚫 執行時期產物（.gitignore 排除）
+    └── monitors.json               # 程式維護的水位狀態
 ```
 
 ---
@@ -187,13 +240,13 @@ Test-Impact-Analysis-mcp/
 
 ### 克制設計原則
 
-> **MCP 工具越多 → 上下文膨脹 → LLM 推理能力下降。** 本專案從 7 個工具合併為 3 個，精簡 57%。
+> **MCP 工具越多 → 上下文膨脹 → LLM 推理能力下降。** 本專案從 7 個工具合併為 3 個，精簡 57%。Phase 2-4 新增 3 個分析工具（共 6 個），每個都有獨立的資料源和副作用邊界。
 
 | 原則 | 做法 |
 |------|------|
 | 能透過設定檔完成的事 | **不建工具**。直接編輯 JSON |
-| 純查詢無副作用 | 合併到既有工具的 `action` 參數 |
-| 單一功能薄包裝 | 審視是否可以合併到語義相近的工具 |
+| 不同資料源/副作用 | 獨立工具（impact_analysis / test_recommendation / risk_assessment） |
+| 語義相近可合併 | 合併到既有工具的 `action` 參數 |
 
 ### Tool 1：`repo_monitor` — 統一倉庫監控
 
@@ -276,6 +329,160 @@ repo_clone(mode="incremental", name="gh-backend", sinceMrId="1234")
 - 📁 命令檔案註冊（自動識別 Claude Code / OpenCode / Codex）
 - 🔗 MCP 設定範本返回
 
+### Tool 4：`impact_analysis` — 程式碼變更影響分析
+
+基於 `impact-rules.conf.json` 中設定的檔案→測試對映規則，自動匹配變更檔案對應的測試模組。
+
+```bash
+impact_analysis(name="gh-backend")              # 分析從水位到 HEAD
+impact_analysis(name="gh-backend", from="a", to="b")  # 指定 SHA 範圍
+impact_analysis(module="使用者中心")               # 按模組批次分析
+```
+
+**匹配策略**: glob 匹配 + 四級信心度（精確 95% / 目錄 70% / 萬用字元 45% / 推斷 30%）
+
+### Tool 5：`test_recommendation` — 智慧測試推薦
+
+在影響分析結果上計算推薦分，按優先級排序，生成最小可行測試集。
+
+```bash
+test_recommendation(name="gh-backend")
+test_recommendation(module="使用者中心")
+```
+
+**推薦分** = 風險權重 (high=100 / medium=50 / low=20) × 信心度 (0-100)  
+**分組**: 強烈建議 (≥7000) | 建議 (≥2000) | 可選
+
+### Tool 6：`risk_assessment` — 變更風險評估
+
+量化程式碼變更風險，綜合檔案數量、模組風險分佈、信心度三維度計算。
+
+```bash
+risk_assessment(name="gh-backend")
+risk_assessment(module="使用者中心")
+```
+
+**評分**: 檔案分 (0-60) + 模組分 (0-40) + 信心度懲罰 (0-20) = 0-100  
+**等級**: 🟢 低 (≤30) | 🟡 中 (31-60) | 🟠 高 (61-85) | 🔴 嚴重 (86-100)
+
+---
+
+## 🔧 JACG 設定指引 🔜 Phase 5b 規劃中
+
+> **JACG**（Java All Call Graph）是 TIA Phase 5b 的核心增強——透過方案 D（子行程 jar 呼叫）整合，為 Java 專案提供**位元組碼層級呼叫鏈分析能力**。JACG 作為可選依賴：JDK 可用時增強分析精度，不可用時自動降級到現有檔案層級 glob 配對。
+
+### JACG 是什麼？
+
+基於 Java 位元組碼（ASM）的靜態呼叫鏈分析引擎。它可以從方法 A 正向追蹤到所有下游呼叫，也可以從方法 B 逆向追溯到所有上游入口（Controller / MQ 訊息消費 / 排程任務）。在 TIA 中，JACG 將當前的「檔案層級測試對映」升級為「方法層級端到端呼叫鏈分析」。
+
+### 前置要求
+
+| 依賴 | 版本 | 說明 |
+|------|------|------|
+| JDK | >= 11（推薦 17+） | 執行時期依賴。不可用時 TIA 自動降級為檔案層級 glob 配對 |
+| java-all-call-graph JAR | 已包含在 `lib/jacg/` 中 | 專案自帶預編譯 JAR，無需額外下載 |
+
+### 多平台安裝
+
+#### Claude Code 環境
+
+```bash
+# 步驟1：確認 JDK 可用
+java -version  # 應輸出 JDK 11+
+
+# 步驟2（如未安裝）：安裝 JDK
+# macOS
+brew install openjdk@17
+
+# Ubuntu/Debian
+sudo apt install openjdk-17-jdk
+
+# Windows
+# 下載 https://adoptium.net/ 的 .msi 安裝包
+
+# 步驟3：驗證 JACG 整合狀態
+# 在 TIA 中執行影響分析：
+impact_analysis(action="full", name="your-java-project")
+# 輸出 "📐 JACG 全量分析 (42s)" = 整合成功
+# 輸出 "⚠️ JDK 不可用，降級為檔案配對" = JDK 未設定
+```
+
+#### OpenCode 環境
+
+```json
+// .opencode.json — 確保 TIA 透過 stdio 連線
+{
+  "mcpServers": {
+    "test-impact-analysis": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"]
+    }
+  }
+}
+```
+JDK 安裝步驟與 Claude Code 相同。
+
+#### Codex 環境
+
+```toml
+# .codex/config.toml
+[mcp_servers.test-impact-analysis]
+command = "npx"
+args = ["tsx", "src/index.ts"]
+enabled = true
+```
+JDK 安裝步驟與上述相同。
+
+### 設定檔
+
+`analyzers.conf.json`（規劃中恢復）中 JACG 相關設定項目：
+
+```jsonc
+{
+  "analyzers": [
+    {
+      "id": "jacg",
+      "name": "Java 呼叫鏈分析",
+      "enabled": true,              // false 可停用
+      "fileExtensions": [".java"],
+      "confidenceWeight": 90,
+      "config": {
+        "jarPath": "lib/jacg/java-all-call-graph.jar",
+        "maxHeap": "2g",            // JVM 最大堆積記憶體
+        "timeout": 600              // 逾時秒數
+      }
+    }
+  ]
+}
+```
+
+### 工作模式
+
+| 模式 | 觸發方式 | 說明 |
+|------|---------|------|
+| 全量預生成 | `impact_analysis(action="full", name="xxx")` | 呼叫 JACG 對全量 Java 程式碼生成呼叫圖，落盤 `.tia/` 目錄 |
+| 增量即時分析 | `impact_analysis(name="xxx", mrId="1423")` | 變更檔案 → 查全景索引 → 逆向 BFS 走訪 → 精準定位受影響 API |
+| 降級兜底 | 自動（JDK 不可用時） | 自動降級為檔案層級 glob 配對（當前預設行為） |
+
+### 效果對比
+
+| 分析方式 | 精度 | 範例 |
+|----------|:--:|------|
+| 檔案層級 glob 配對（當前） | 檔案→測試對映 | `OrderService.java` 變更 → 建議執行 `OrderServiceTest` |
+| JACG 呼叫鏈分析（Phase 5b） | 方法→API 端點到端鏈路 | `OrderService.createOrder()` → `OrderController.createOrder()` → `POST /api/orders` |
+
+### 故障排除
+
+| 問題 | 原因 | 解決 |
+|------|------|------|
+| `⚠️ JDK 不可用` | java 不在 PATH 中 | `which java` 確認路徑，或設定 `JAVA_HOME` |
+| `JACG 逾時` | 專案過大 | 增大 `analyzers.conf.json` 中的 `timeout` 值 |
+| `OutOfMemoryError` | 堆積記憶體不足 | 增大 `maxHeap`（如 `"4g"`） |
+| `JAR 檔案缺失` | `lib/jacg/*.jar` 不存在 | 執行 `scripts/download-jacg.sh` 下載/建置 |
+
+> ⚠️ **本章節所有內容為 Phase 5b 規劃預覽，尚未實作。** 當前 TIA 使用檔案層級 glob 配對進行影響分析，功能完全可用。
+
 ---
 
 ## 🗺️ 命令速查
@@ -287,6 +494,9 @@ repo_clone(mode="incremental", name="gh-backend", sinceMrId="1234")
 | `/repo_status` | `/repo_status [name=\|module=]` | 檢視倉庫水位（快捷命令） |
 | `/repo_check` | `/repo_check [name=\|module=]` | 檢查新提交（快捷命令） |
 | `/repo_reset` | `/repo_reset <target> [--label] [--since]` | 重置水位（快捷命令） |
+| `impact_analysis` | `impact_analysis [name=\|module=] [from=] [to=]` | 程式碼變更影響分析 |
+| `test_recommendation` | `test_recommendation [name=\|module=] [from=] [to=]` | 智慧測試推薦 |
+| `risk_assessment` | `risk_assessment [name=\|module=] [from=] [to=]` | 變更風險評估 |
 
 ---
 
@@ -296,7 +506,7 @@ repo_clone(mode="incremental", name="gh-backend", sinceMrId="1234")
 
 | 維度 | Claude Code | OpenCode | Codex (OpenAI) |
 |------|------------|----------|----------------|
-| **命令目錄** | `.claude/commands/` | `.opencode/commands/` | `.agents/skills/` |
+| **命令目錄** | `.claude/commands/` | `.opencode/commands/` | `.codex/skills/` |
 | **檔案格式** | `.md` (frontmatter + 指令) | `.md` ($NAME 佔位符) | `SKILL.md` (YAML frontmatter) |
 | **呼叫方式** | `/命令名` | `Ctrl+K` 命令面板 | `$技能名` |
 | **MCP 設定** | `.claude/settings.local.json` | `.opencode.json` → `mcpServers` | `.codex/config.toml` |
@@ -310,6 +520,9 @@ repo_clone(mode="incremental", name="gh-backend", sinceMrId="1234")
 | 檢視水位 | `/repo_status` | `repo_status` cmd | `$repo-status` |
 | 檢查更新 | `/repo_check` | `repo_check` cmd | `$repo-check` |
 | 重置水位 | `/repo_reset` | `repo_reset` cmd | `$repo-reset` |
+| 影響分析 | `impact_analysis` | `impact_analysis` cmd | `$impact-analysis` |
+| 測試推薦 | `test_recommendation` | `test_recommendation` cmd | `$test-recommendation` |
+| 風險評估 | `risk_assessment` | `risk_assessment` cmd | `$risk-assessment` |
 
 ---
 
@@ -344,6 +557,118 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts    # 自訂埠號
 
 ---
 
+## 📋 影響分析規則配置
+
+TIA 使用兩級規則體系來定義「檔案變更 → 測試案例」的對應關係，支撐 `impact_analysis`、`test_recommendation`、`risk_assessment` 三個分析工具。
+
+#### 兩級規則體系
+
+```
+通用規則（第 1 級）              企業規則（第 2 級）
+impact-rules.conf.json        enterprise/impact-rules.conf.json
+├─ 專案根目錄                   ├─ enterprise/ 目錄（.gitignore 排除）
+├─ 可提交到 GitHub              ├─ 僅本機有效，永不提交
+└─ 所有使用者開箱即用            └─ 企業內部客製化規則
+
+最終生效 = 通用規則 ∪ 企業規則（同 id 企業覆蓋通用）
+```
+
+#### 快速上手（3 步）
+
+```bash
+# 第 1 步：檢視通用規則（已有範例）
+cat impact-rules.conf.json
+
+# 第 2 步：建立企業規則（從範本複製）
+cp examples/impact-rules.conf.example.json enterprise/impact-rules.conf.json
+
+# 第 3 步：編輯企業規則，取消註解適用的預設規則
+vim enterprise/impact-rules.conf.json
+```
+
+#### 規則欄位說明
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|:--:|------|
+| `id` | string | ✅ | 唯一識別碼。企業規則建議使用 `ent-` 前綴避免衝突 |
+| `name` | string | ✅ | 規則名稱，便於識別 |
+| `description` | string | ❌ | 規則描述，說明該規則涵蓋的業務場景 |
+| `filePatterns` | string[] | ✅ | 檔案比對的 glob 模式（支援 `**` `*` `{a,b}`） |
+| `testPaths` | string[] | ✅ | 對應的測試檔案或測試目錄路徑 |
+| `riskLevel` | "high" / "medium" / "low" | ✅ | 風險等級，影響推薦分和風險評估 |
+| `appliesTo` | object | ❌ | 規則適用範圍篩選（見下方說明） |
+
+#### `appliesTo` 篩選邏輯
+
+透過 `appliesTo` 可讓規則僅對特定倉庫/模組生效，避免全域比對：
+
+| 維度 | 欄位 | 範例 | 說明 |
+|------|------|------|------|
+| 倉庫別名 | `names` | `["order-service"]` | 僅對指定倉庫生效 |
+| 業務模組 | `modules` | `["訂單系統"]` | 僅對指定模組生效 |
+| 倉庫類型 | `repoTypes` | `["backend"]` | `backend` / `frontend` |
+| Git 平台 | `platforms` | `["github"]` | `github` / `generic` / `local` |
+
+**規則**：多個維度之間是 **AND** 關係（同時滿足），單個維度內是 **OR** 關係（命中任一即可）。
+
+#### glob 模式速查
+
+| 模式 | 說明 | 範例 |
+|------|------|------|
+| `**` | 比對任意層級目錄 | `src/**/*.java` — 所有 Java 檔案 |
+| `*` | 比對單層目錄內任意字元 | `src/*.ts` — src 目錄下所有 TS 檔案 |
+| `{a,b}` | 比對 a 或 b | `*.{ts,tsx}` — 所有 TS 和 TSX 檔案 |
+
+#### 預設規則範本速覽
+
+範本檔案 `examples/impact-rules.conf.example.json` 提供 3 類預設規則（已註解），依需求取消註解或修改：
+
+| 類別 | 規則 ID | 適用場景 |
+|------|---------|----------|
+| **Java 後端** | `ent-controller` / `ent-service` / `ent-repository` / `ent-orm` / `ent-spring-config` | Controller / Service / Repository 層、ORM 對映、Spring 設定 |
+| **JS 前端** | `ent-component` / `ent-state` / `ent-hooks` / `ent-api-service` / `ent-utils` | React 元件、狀態管理、Hooks、API 服務層、工具函式 |
+| **通用** | `ent-config` / `ent-db-migration` / `ent-security` | 設定檔、資料庫遷移腳本、安全相關程式碼 |
+
+#### 後續擴充指引
+
+- **新增規則**：在 `enterprise/impact-rules.conf.json` 中新增條目，參考預設範本格式
+- **規則驗證**：執行 `impact_analysis` 工具，觀察輸出中的 `matchType` 和 `confidence` 欄位
+- **規則數量建議**：10-30 條為推薦範圍，超過 30 條建議按 `appliesTo` 拆分
+- **定期審查**：每季檢查自動推斷命中率（`matchType: "inferred"`），補充遺漏規則
+
+#### FAQ
+
+<details>
+<summary><b>規則沒生效怎麼辦？</b></summary>
+
+1. 檢查 `appliesTo` 篩選條件是否符合當前倉庫/模組
+2. 檢查 glob 模式是否符合實際檔案路徑（注意相對路徑基準）
+3. 確認規則檔案路徑正確：通用 `impact-rules.conf.json`，企業 `enterprise/impact-rules.conf.json`
+</details>
+
+<details>
+<summary><b>如何驗證規則是否正確？</b></summary>
+
+構造一個測試 MR，執行 `impact_analysis`，觀察：
+- `matchType: "exact"` 表示精確命中（信心度 95%）
+- `matchType: "inferred"` 表示未命中任何規則，走了自動推斷（信心度 30%）
+- 如果預期命中的規則沒生效，檢查 glob 模式和 `appliesTo` 條件
+</details>
+
+<details>
+<summary><b>通用規則和企業規則衝突怎麼辦？</b></summary>
+
+同 `id` 的企業規則會覆蓋通用規則。這是「企業客製優先」的設計，確保團隊級規則不被通用規則干擾。
+</details>
+
+<details>
+<summary><b>規則數量有上限嗎？</b></summary>
+
+無硬性上限，但建議控制在 30 條以內。規則過多會拖慢比對效能，也增加維護負擔。超過 30 條時考慮按 `appliesTo` 拆分到不同倉庫。
+</details>
+
+---
+
 ## 🗺️ 開發路線圖
 
 | 階段 | 內容 | 狀態 |
@@ -355,6 +680,10 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts    # 自訂埠號
 | Phase 2 | Impact Analysis — 程式碼變更影響分析 | ✅ 已完成 |
 | Phase 3 | Test Recommendation — 智慧測試推薦 | ✅ 已完成 |
 | Phase 4 | Risk Assessment — 變更風險量化 | ✅ 已完成 |
+| Phase 5a | Analyzer Registry — MCP 編織層 | ✅ 已完成 |
+| Phase 5b | JACG 呼叫鏈分析（雙模引擎 + 融合引擎） | 🔜 規劃中 |
+| Phase 5c | SQL / Perf / Python / Go 分析器橫向擴展 | 💡 構思中 |
+| Phase 6 | 資訊安全分層重構 — enterprise/ 隔離 | ✅ 已完成 |
 
 ---
 

@@ -1,0 +1,10 @@
+{
+  "_comment": "复制此文件到 enterprise/.mcp.json",
+  "mcpServers": {
+    "test-impact-analysis": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"]
+    }
+  }
+}

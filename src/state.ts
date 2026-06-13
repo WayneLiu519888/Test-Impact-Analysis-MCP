@@ -11,10 +11,11 @@
  *   - 配置中无 & 状态中有  →  用户已从配置中移除，忽略
  */
 
-import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
+import { writeFileSync, existsSync, statSync } from "fs";
 import { join } from "path";
-import { PROJECT_ROOT } from "./paths.js";
+import { PROJECT_ROOT, resolveConfigPath } from "./paths.js";
 import { fileURLToPath } from "url";
+import { safeJsonLoad } from "./shared/json-utils.js";
 import type {
   RepoConfig,
   MonitorConfigFile,
@@ -35,9 +36,21 @@ const MAX_SEEN_SHAS = 500;
 /** 水位快照最大保留条数 */
 const MAX_SNAPSHOT_COUNT = 20;
 
-/** 配置文件路径 — 使用共享 paths 模块 */
-const CONFIG_FILE = join(PROJECT_ROOT, "monitors.conf.json");
+/** 运行时状态文件 — 始终在根目录，程序自动维护 */
 const STATE_FILE = join(PROJECT_ROOT, "monitors.json");
+
+/**
+ * 配置文件路径（延迟求值 — 首次调用时解析）。
+ *
+ * 使用 lazy 模式而非模块顶级常量，避免 import 阶段因配置文件缺失导致进程崩溃。
+ * `ensureEnterpriseDir()` 在 index.ts 启动时才调用，晚于所有模块的 import 阶段。
+ *
+ * @param filename  配置文件名
+ * @returns 解析后的绝对路径（走三级 fallback：enterprise/ > 根目录 > examples/ 模板）
+ */
+function getConfigPath(filename: string): string {
+  return resolveConfigPath(filename);
+}
 
 // ═══════════════════════════════════════════════════════════
 // 内存缓存 — 避免批量操作时反复 readFileSync
@@ -105,35 +118,15 @@ export function parseGitUrl(url: string): GitUrlInfo {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 通用安全 JSON 加载
-// ═══════════════════════════════════════════════════════════
-
-/**
- * 安全加载 JSON 文件。文件不存在或格式错误时返回 fallback，并将错误输出到 stderr。
- * 避免 JSON 解析异常直接暴露给用户。
- */
-function safeJsonLoad<T>(filePath: string, fallback: () => T, label: string): T {
-  if (!existsSync(filePath)) {
-    return fallback();
-  }
-  try {
-    return JSON.parse(readFileSync(filePath, "utf-8")) as T;
-  } catch (err: any) {
-    console.error(`[TIA] ⚠️ ${label} 文件格式错误，已重置为默认值: ${err.message}`);
-    return fallback();
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
 // 配置文件读写（monitors.conf.json）
 // ═══════════════════════════════════════════════════════════
 
 /** 读取用户手写的配置文件（带 mtime 缓存） */
 export function loadConfig(): MonitorConfigFile {
-  const mtime = fileMtime(CONFIG_FILE);
+  const mtime = fileMtime(getConfigPath("monitors.conf.json"));
   if (_configCache && _configCache.mtime === mtime) return _configCache.data;
 
-  const parsed = safeJsonLoad<any>(CONFIG_FILE, () => ({ repositories: [] }), "monitors.conf.json");
+  const parsed = safeJsonLoad<any>(getConfigPath("monitors.conf.json"), () => ({ repositories: [] }), "monitors.conf.json");
   const data: MonitorConfigFile = {
     baseDir: typeof parsed.baseDir === "string" ? parsed.baseDir : undefined,
     repositories: Array.isArray(parsed.repositories) ? parsed.repositories : [],
@@ -144,7 +137,7 @@ export function loadConfig(): MonitorConfigFile {
 
 /** 写入配置文件（同时失效缓存） */
 export function saveConfig(config: MonitorConfigFile): void {
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { encoding: "utf-8", mode: 0o600 });
+  writeFileSync(getConfigPath("monitors.conf.json"), JSON.stringify(config, null, 2), { encoding: "utf-8", mode: 0o600 });
   _configCache = null;
 }
 
@@ -327,7 +320,7 @@ export function resetWatermark(name: string, newSha: string, label: string): Wat
 export function validateConfig(): string[] {
   const errors: string[] = [];
 
-  if (!existsSync(CONFIG_FILE)) {
+  if (!existsSync(getConfigPath("monitors.conf.json"))) {
     return []; // 首次启动，无配置文件不算错误
   }
 
@@ -406,9 +399,9 @@ export function validateConfig(): string[] {
 
 /** 确保配置文件存在（不存在则创建种子文件） */
 export function ensureConfigFile(): void {
-  if (!existsSync(CONFIG_FILE)) {
+  if (!existsSync(getConfigPath("monitors.conf.json"))) {
     saveConfig({ repositories: [] });
-    console.error(`[TIA] 已创建种子配置文件: ${CONFIG_FILE}`);
+    console.error(`[TIA] 已创建种子配置文件: ${getConfigPath("monitors.conf.json")}`);
     console.error(`[TIA] 请编辑此文件添加要监控的仓库，然后重启 CC`);
   }
 }

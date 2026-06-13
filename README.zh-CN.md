@@ -27,6 +27,62 @@
 ---
 
 ## 🎯 项目定位
+---
+
+## 🏗️ 初始化与安全
+
+> ⚠️ **首次使用必读** — clone 后只需 3 步即可安全使用，企业敏感配置永不泄露。
+
+### 1. 初始化（3 步上手）
+
+```bash
+# 第 1 步：克隆仓库
+git clone git@github.com:xxx/TIA.git && cd TIA
+
+# 第 2 步：安装依赖（自动安装 git hooks）
+npm install
+
+# 第 3 步：配置你的仓库
+cp examples/monitors.conf.example.json enterprise/monitors.conf.json
+vim enterprise/monitors.conf.json   # 填入你要监控的仓库信息
+```
+
+### 2. 安全边界（三层防护）
+
+TIA 严格区分**源码层**与**企业配置层**，确保企业内部信息永远不会提交到 GitHub：
+
+```
+┌──────────────────────────────────────────────┐
+│  GitHub 仓库（源码层 — 安全可提交）             │
+│  src/  docs/  examples/  CLAUDE.md  README   │
+├──────────────────────────────────────────────┤
+│  enterprise/  ← 🔒 企业配置层（永不提交）       │
+│  monitors.conf.json  server.conf.json 等      │
+│  ⚠️ 整个目录被 .gitignore 排除                │
+└──────────────────────────────────────────────┘
+```
+
+| 防线 | 触发时机 | 机制 |
+|------|----------|------|
+| **第 1 层** | 文件落盘 | `.gitignore` 排除 `enterprise/` 及根目录敏感文件 |
+| **第 2 层** | `git commit` | `.githooks/pre-commit` 5 条规则实时拦截 |
+| **第 3 层** | `git push` / PR | `.github/workflows/security-check.yml` CI 自动扫描 |
+
+### 3. 双环境无感切换
+
+```
+【在家 → GitHub】            【公司 → 内网分析】
+git push → GitHub          git clone TIA（只读）
+源码层不含企业信息 ✅         enterprise/ 配企业仓库
+                           拉代码 → 分析 → 不推送 ✅
+```
+
+### 4. 验证安装
+
+```bash
+npm run security-check   # 源码层应显示 ✅ 自查通过
+npm test                 # 83 个测试应全部通过
+```
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -160,58 +216,35 @@ TIA-init
 ```
 Test-Impact-Analysis-mcp/
 │
-├── src/                        # 核心源码
-│   ├── index.ts                # MCP Server 入口 + Transport 双模启动
-│   ├── state.ts                # 配置/状态读写、水位管理、快照归档
-│   ├── types.ts                # 共享类型定义
-│   ├── security.ts             # IP 白名单 + API KEY 安全
-│   ├── platforms/              # Git 平台适配器层
-│   │   ├── types.ts            # PlatformAdapter 接口定义
-│   │   ├── github.ts           # GitHub REST API v3 适配器
-│   │   ├── generic.ts          # 通用 REST API 适配器（GitLab/CodeHub 等）
-│   │   └── local.ts            # 本地 git 命令适配器
-│   ├── tools/                  # MCP 工具模块（6 个工具）
-│   │   ├── index.ts            # 路由分发 + 认证
-│   │   ├── schemas.ts          # 工具 Schema 定义
-│   │   ├── helpers.ts          # 适配器工厂 / 参数校验 / 响应辅助
-│   │   ├── tia-init.ts         # TIA-init 初始化引导
-│   │   ├── repo-monitor.ts     # 仓库监控（status/check/reset）
-│   │   └── repo-clone.ts       # 代码克隆（全量/增量）
-│   ├── impact-analysis/        # 影响分析模块（Phase 2-4）
-│   │   ├── types.ts            # 规则/结果/推荐/风险类型
-│   │   ├── state.ts            # impact-rules.conf.json 读写
-│   │   ├── analyzer.ts         # glob 匹配引擎 + 置信度 + 自动推断
-│   │   ├── handler.ts          # impact_analysis 工具处理器
-│   │   ├── recommendation.ts   # test_recommendation 推荐引擎
-│   │   ├── risk-scorer.ts      # 风险评分引擎 (0-100)
-│   │   └── risk-handler.ts     # risk_assessment 工具处理器
-│   └── tests/                  # 单元测试（78 个测试用例）
+├── 📦 源码层（提交到 GitHub）
+│   ├── src/                        # 核心源码
+│   │   ├── index.ts                # MCP Server 入口 + Transport 双模启动
+│   │   ├── state.ts                # 配置/状态读写、水位管理
+│   │   ├── paths.ts                # 路径定位 + resolveConfigPath
+│   │   ├── security.ts             # IP 白名单 + API KEY 安全
+│   │   ├── platforms/              # Git 平台适配器层
+│   │   ├── tools/                  # MCP 工具模块（6 个工具）
+│   │   ├── impact-analysis/        # 影响分析模块（Phase 2-4）
+│   │   └── tests/                  # 单元测试（83 个）
+│   ├── docs/                       # 多语言文档
+│   ├── examples/                   # 配置模板（.example.json）
+│   ├── scripts/                    # 安全自查脚本
+│   ├── .githooks/                  # Git 安全钩子（pre-commit）
+│   ├── .github/workflows/          # CI 安全扫描
+│   ├── .claude/commands/           # Claude Code 斜杠命令
+│   ├── .opencode/commands/         # OpenCode 命令
+│   ├── .codex/skills/             # Codex 技能
+│   ├── README.md                   # 项目入口
+│   └── impact-rules.conf.json      # 影响分析规则（示例）
 │
-├── .claude/commands/           # Claude Code 斜杠命令
-│   ├── repo_monitor.md         # /repo_monitor — 统一监控入口
-│   ├── repo_clone.md           # /repo_clone — 统一克隆入口
-│   ├── repo_status.md          # /repo_status — 查看水位
-│   ├── repo_check.md           # /repo_check — 检查更新
-│   └── repo_reset.md           # /repo_reset — 重置水位
+├── 🔒 企业配置层（.gitignore 排除，永不提交）
+│   └── enterprise/                 # 你的真实配置放这里
+│       ├── monitors.conf.json      # 仓库监控配置
+│       ├── server.conf.json        # HTTP 安全配置
+│       └── .mcp.json               # MCP 连接配置
 │
-├── .opencode/commands/         # OpenCode 命令
-│   ├── repo_monitor.md
-│   ├── repo_clone.md
-│   ├── repo_status.md
-│   ├── repo_check.md
-│   └── repo_reset.md
-│
-├── .agents/skills/             # Codex 技能
-│   ├── repo-monitor/SKILL.md
-│   ├── repo-clone/SKILL.md
-│   ├── repo-status/SKILL.md
-│   ├── repo-check/SKILL.md
-│   └── repo-reset/SKILL.md
-│
-├── monitors.conf.json          # 用户手写的仓库监控配置
-├── monitors.json               # 程序维护的水位状态文件
-├── impact-rules.conf.json      # 影响分析规则配置
-└── server.conf.json            # HTTP 模式安全配置
+└── 🚫 运行时产物（.gitignore 排除）
+    └── monitors.json               # 程序维护的水位状态
 ```
 
 ---
@@ -364,6 +397,124 @@ risk_assessment(module="用户中心")
 
 ---
 
+## 🔧 JACG 安装配置 🔜 Phase 5b 规划中
+
+> **JACG**（Java All Call Graph）是 TIA Phase 5b 的核心增强——通过方案 D（子进程 jar 调用）集成，为 Java 项目提供**字节码级调用链分析能力**。JACG 作为可选依赖：JDK 可用时增强分析精度，不可用时自动降级到现有文件级 glob 匹配。
+
+### JACG 是什么？
+
+基于 Java 字节码（ASM）的静态调用链分析引擎。它可以从方法 A 正向追踪到所有下游调用，也可以从方法 B 逆向追溯到所有上游入口（Controller / MQ 消息消费 / 定时任务）。在 TIA 中，JACG 将当前的"文件级测试映射"升级为"方法级端到端调用链分析"。
+
+### 前置要求
+
+| 依赖 | 版本 | 说明 |
+|------|------|------|
+| JDK | >= 11（推荐 17+） | 运行时依赖。不可用时 TIA 自动降级为文件级 glob 匹配 |
+| java-all-call-graph JAR | 已包含在 `lib/jacg/` 中 | 项目自带预编译 JAR，无需额外下载 |
+
+### 多平台安装
+
+#### Claude Code 环境
+
+```bash
+# 步骤1：确认 JDK 可用
+java -version  # 应输出 JDK 11+
+
+# 步骤2（如未安装）：安装 JDK
+# macOS
+brew install openjdk@17
+
+# Ubuntu/Debian
+sudo apt install openjdk-17-jdk
+
+# Windows
+# 下载 https://adoptium.net/ 的 .msi 安装包
+
+# 步骤3：验证 JACG 集成状态
+# 在 TIA 中运行影响分析：
+impact_analysis(action="full", name="your-java-project")
+# 输出 "📐 JACG 全量分析 (42s)" = 集成成功
+# 输出 "⚠️ JDK 不可用，降级为文件匹配" = JDK 未配置
+```
+
+#### OpenCode 环境
+
+```json
+// .opencode.json — 确保 TIA 通过 stdio 连接
+{
+  "mcpServers": {
+    "test-impact-analysis": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"]
+    }
+  }
+}
+```
+JDK 安装步骤与 Claude Code 相同。
+
+#### Codex 环境
+
+```toml
+# .codex/config.toml
+[mcp_servers.test-impact-analysis]
+command = "npx"
+args = ["tsx", "src/index.ts"]
+enabled = true
+```
+JDK 安装步骤与上述相同。
+
+### 配置文件
+
+`analyzers.conf.json`（规划中恢复）中 JACG 相关配置项：
+
+```jsonc
+{
+  "analyzers": [
+    {
+      "id": "jacg",
+      "name": "Java 调用链分析",
+      "enabled": true,              // false 可禁用
+      "fileExtensions": [".java"],
+      "confidenceWeight": 90,
+      "config": {
+        "jarPath": "lib/jacg/java-all-call-graph.jar",
+        "maxHeap": "2g",            // JVM 最大堆内存
+        "timeout": 600              // 超时秒数
+      }
+    }
+  ]
+}
+```
+
+### 工作模式
+
+| 模式 | 触发方式 | 说明 |
+|------|---------|------|
+| 全量预生成 | `impact_analysis(action="full", name="xxx")` | 调用 JACG 对全量 Java 代码生成调用图，落盘 `.tia/` 目录 |
+| 增量实时分析 | `impact_analysis(name="xxx", mrId="1423")` | 变更文件 → 查全景索引 → 逆向 BFS 遍历 → 精准定位受影响 API |
+| 降级兜底 | 自动（JDK 不可用时） | 自动降级为文件级 glob 匹配（当前默认行为） |
+
+### 效果对比
+
+| 分析方式 | 精度 | 示例 |
+|----------|:--:|------|
+| 文件级 glob 匹配（当前） | 文件→测试映射 | `OrderService.java` 变更 → 建议运行 `OrderServiceTest` |
+| JACG 调用链分析（Phase 5b） | 方法→API 端点到端链路 | `OrderService.createOrder()` → `OrderController.createOrder()` → `POST /api/orders` |
+
+### 故障排除
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `⚠️ JDK 不可用` | java 不在 PATH 中 | `which java` 确认路径，或设置 `JAVA_HOME` |
+| `JACG 超时` | 项目过大 | 增大 `analyzers.conf.json` 中的 `timeout` 值 |
+| `OutOfMemoryError` | 堆内存不足 | 增大 `maxHeap`（如 `"4g"`） |
+| `JAR 文件缺失` | `lib/jacg/*.jar` 不存在 | 运行 `scripts/download-jacg.sh` 下载/构建 |
+
+> ⚠️ **本章节所有内容为 Phase 5b 规划预览，尚未实现。** 当前 TIA 使用文件级 glob 匹配进行影响分析，功能完全可用。
+
+---
+
 ## 🗺️ 命令速查
 
 | 命令 | 用法 | 说明 |
@@ -396,7 +547,7 @@ risk_assessment(module="用户中心")
 
 | 维度 | Claude Code | OpenCode | Codex (OpenAI) |
 |------|------------|----------|----------------|
-| **命令目录** | `.claude/commands/` | `.opencode/commands/` | `.agents/skills/` |
+| **命令目录** | `.claude/commands/` | `.opencode/commands/` | `.codex/skills/` |
 | **文件格式** | `.md` (frontmatter + 指令) | `.md` ($NAME 占位符) | `SKILL.md` (YAML frontmatter) |
 | **调用方式** | `/命令名` | `Ctrl+K` 命令面板 | `$技能名` |
 | **MCP 配置** | `.claude/settings.local.json` | `.opencode.json` → `mcpServers` | `.codex/config.toml` → `[mcp_servers]` |
@@ -499,13 +650,13 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts
     },
     {
       "name": "codehub-order",
-      "url": "git@codehub.huawei.com:myproject/order-service.git",
+      "url": "git@<YOUR-GIT-HOST>:<YOUR-ORG>/example-project.git",
       "platform": "generic",
       "branch": "develop",
       "repoType": "backend",
       "module": "订单系统",
       "genericConfig": {
-        "apiBase": "https://codehub.huawei.com",
+        "apiBase": "https://<YOUR-GIT-HOST>",
         "apiTemplate": "/api/v1/projects/{owner}/repos/{repo}/commits?ref={branch}",
         "mrApiTemplate": "/api/v1/projects/{owner}/repos/{repo}/merge_requests?state=merged&target_branch={branch}&order_by=created_at&sort=asc"
       }
@@ -513,6 +664,116 @@ MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts
   ]
 }
 ```
+
+### 影响分析规则配置
+
+TIA 使用两级规则体系来定义"文件变更 → 测试用例"的映射关系，支撑 `impact_analysis`、`test_recommendation`、`risk_assessment` 三个分析工具。
+
+#### 两级规则体系
+
+```
+通用规则（第 1 级）              企业规则（第 2 级）
+impact-rules.conf.json        enterprise/impact-rules.conf.json
+├─ 项目根目录                   ├─ enterprise/ 目录（.gitignore 排除）
+├─ 可提交到 GitHub              ├─ 仅本地有效，永不提交
+└─ 所有用户开箱即用              └─ 企业内部定制规则
+
+最终生效 = 通用规则 ∪ 企业规则（同 id 企业覆盖通用）
+```
+
+#### 快速上手（3 步）
+
+```bash
+# 第 1 步：查看通用规则（已有示例）
+cat impact-rules.conf.json
+
+# 第 2 步：创建企业规则（从模板复制）
+cp examples/impact-rules.conf.example.json enterprise/impact-rules.conf.json
+
+# 第 3 步：编辑企业规则，取消注释适用的预设规则
+vim enterprise/impact-rules.conf.json
+```
+
+#### 规则字段说明
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:--:|------|
+| `id` | string | ✅ | 唯一标识。企业规则建议使用 `ent-` 前缀避免冲突 |
+| `name` | string | ✅ | 规则名称，便于识别 |
+| `description` | string | ❌ | 规则描述，说明该规则覆盖的业务场景 |
+| `filePatterns` | string[] | ✅ | 文件匹配的 glob 模式（支持 `**` `*` `{a,b}`） |
+| `testPaths` | string[] | ✅ | 对应的测试文件或测试目录路径 |
+| `riskLevel` | "high" / "medium" / "low" | ✅ | 风险等级，影响推荐分和风险评估 |
+| `appliesTo` | object | ❌ | 规则适用范围筛选（见下方说明） |
+
+#### `appliesTo` 筛选逻辑
+
+通过 `appliesTo` 可让规则仅对特定仓库/模块生效，避免全量匹配：
+
+| 维度 | 字段 | 示例 | 说明 |
+|------|------|------|------|
+| 仓库别名 | `names` | `["order-service"]` | 仅对指定仓库生效 |
+| 业务模块 | `modules` | `["订单系统"]` | 仅对指定模块生效 |
+| 仓库类型 | `repoTypes` | `["backend"]` | `backend` / `frontend` |
+| Git 平台 | `platforms` | `["github"]` | `github` / `generic` / `local` |
+
+**规则**：多个维度之间是 **AND** 关系（同时满足），单个维度内是 **OR** 关系（命中任一即可）。
+
+#### glob 模式速查
+
+| 模式 | 说明 | 示例 |
+|------|------|------|
+| `**` | 匹配任意层级目录 | `src/**/*.java` — 所有 Java 文件 |
+| `*` | 匹配单层目录内任意字符 | `src/*.ts` — src 目录下所有 TS 文件 |
+| `{a,b}` | 匹配 a 或 b | `*.{ts,tsx}` — 所有 TS 和 TSX 文件 |
+
+#### 预设规则模板速览
+
+模板文件 `examples/impact-rules.conf.example.json` 提供 3 类预设规则（已注释），按需取消注释或修改：
+
+| 类别 | 规则 ID | 适用场景 |
+|------|---------|----------|
+| **Java 后端** | `ent-controller` / `ent-service` / `ent-repository` / `ent-orm` / `ent-spring-config` | Controller / Service / Repository 层、ORM 映射、Spring 配置 |
+| **JS 前端** | `ent-component` / `ent-state` / `ent-hooks` / `ent-api-service` / `ent-utils` | React 组件、状态管理、Hooks、API 服务层、工具函数 |
+| **通用** | `ent-config` / `ent-db-migration` / `ent-security` | 配置文件、数据库迁移脚本、安全相关代码 |
+
+#### 后续扩展指引
+
+- **添加新规则**：在 `enterprise/impact-rules.conf.json` 中新增条目，参考预设模板格式
+- **规则验证**：运行 `impact_analysis` 工具，观察输出中的 `matchType` 和 `confidence` 字段
+- **规则数量建议**：10-30 条为推荐范围，超过 30 条建议按 `appliesTo` 拆分
+- **定期审查**：每季度检查自动推断命中率（`matchType: "inferred"`），补充遗漏规则
+
+#### FAQ
+
+<details>
+<summary><b>规则不生效怎么办？</b></summary>
+
+1. 检查 `appliesTo` 筛选条件是否匹配当前仓库/模块
+2. 检查 glob 模式是否匹配实际文件路径（注意相对路径基准）
+3. 确认规则文件路径正确：通用 `impact-rules.conf.json`，企业 `enterprise/impact-rules.conf.json`
+</details>
+
+<details>
+<summary><b>如何验证规则是否正确？</b></summary>
+
+构造一个测试 MR，运行 `impact_analysis`，观察：
+- `matchType: "exact"` 说明精确命中（置信度 95%）
+- `matchType: "inferred"` 说明未命中任何规则，走了自动推断（置信度 30%）
+- 如果预期命中的规则没生效，检查 glob 模式和 `appliesTo` 条件
+</details>
+
+<details>
+<summary><b>通用规则和企业规则冲突怎么办？</b></summary>
+
+同 `id` 的企业规则会覆盖通用规则。这是"企业定制优先"的设计，确保团队级规则不被通用规则干扰。
+</details>
+
+<details>
+<summary><b>规则数量有上限吗？</b></summary>
+
+无硬性上限，但建议控制在 30 条以内。规则过多会拖慢匹配性能，也增加维护负担。超过 30 条时考虑按 `appliesTo` 拆分到不同仓库。
+</details>
 
 ---
 
@@ -615,7 +876,7 @@ npx tsc --noEmit       # 类型检查
 |------|---------|---------|
 | **Claude Code** | `.claude/commands/*.md` | `.claude/settings.local.json` |
 | **OpenCode** | `.opencode/commands/*.md` | `.opencode.json` |
-| **Codex** | `.agents/skills/*/SKILL.md` | `.codex/config.toml` |
+| **Codex** | `.codex/skills/*/SKILL.md` | `.codex/config.toml` |
 
 </details>
 
@@ -632,6 +893,10 @@ npx tsc --noEmit       # 类型检查
 | Phase 2 | Impact Analysis — 代码变更 → 受影响模块/用例分析 | ✅ 已完成 |
 | Phase 3 | Test Recommendation — 基于变更智能推荐测试用例 | ✅ 已完成 |
 | Phase 4 | Risk Assessment — 变更风险量化与报告 | ✅ 已完成 |
+| Phase 5a | Analyzer Registry — MCP 编织层 | ✅ 已完成 |
+| Phase 5b | JACG 调用链分析（双模引擎 + 融合引擎） | 🔜 规划中 |
+| Phase 5c | SQL / Perf / Python / Go 分析器横向扩展 | 💡 构思中 |
+| Phase 6 | 信息安全分层重构 — enterprise/ 隔离 | ✅ 已完成 |
 
 ---
 

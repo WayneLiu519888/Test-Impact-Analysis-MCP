@@ -1,0 +1,27 @@
+{
+  "_comment": "复制此文件到 enterprise/monitors.conf.json 并填入真实配置",
+  "baseDir": ".",
+  "repositories": [
+    {
+      "name": "example-backend",
+      "url": "git@<YOUR-GIT-HOST>:<YOUR-ORG>/backend.git",
+      "platform": "github",
+      "branch": "main",
+      "repoType": "backend",
+      "module": "示例模块"
+    },
+    {
+      "name": "example-generic",
+      "url": "git@<YOUR-GIT-HOST>:<YOUR-PROJECT>/example-service.git",
+      "platform": "generic",
+      "branch": "develop",
+      "repoType": "backend",
+      "module": "示例模块",
+      "genericConfig": {
+        "apiBase": "https://<YOUR-GIT-HOST>",
+        "apiTemplate": "/api/v1/projects/{owner}/repos/{repo}/commits?ref={branch}",
+        "mrApiTemplate": "/api/v1/projects/{owner}/repos/{repo}/merge_requests?state=merged&target_branch={branch}&order_by=created_at&sort=asc"
+      }
+    }
+  ]
+}
