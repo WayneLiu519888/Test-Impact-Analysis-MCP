@@ -4,8 +4,8 @@
       "id": "jacg",
       "name": "Java 调用链分析",
       "fileExtensions": [".java"],
-      "enabled": true,
-      "description": "基于 java-all-call-graph-server 的 Java 方法调用链分析。已安装于 ../java-all-call-graph。",
+      "enabled": false,
+      "description": "基于 java-all-call-graph-server 的 Java 方法调用链分析。安装后设为 enabled: true。",
       "connection": {
         "transport": "http",
         "url": "http://127.0.0.1:34567/mcp/sse"
