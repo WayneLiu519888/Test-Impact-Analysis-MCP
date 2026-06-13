@@ -15,6 +15,8 @@ import { handleTiaInit } from "./tia-init.js";
 import { handleRepoMonitor } from "./repo-monitor.js";
 import { handleRepoClone } from "./repo-clone.js";
 import { handleImpactAnalysis } from "../impact-analysis/handler.js";
+import { handleTestRecommendation } from "../impact-analysis/recommendation.js";
+import { handleRiskAssessment } from "../impact-analysis/risk-handler.js";
 
 // Re-export schemas
 export { TOOL_SCHEMAS } from "./schemas.js";
@@ -42,7 +44,9 @@ export async function handleToolCall(
       case "TIA-init":     return await handleTiaInit(args);
       case "repo_monitor": return await handleRepoMonitor(args);
       case "repo_clone":       return await handleRepoClone(args);
-      case "impact_analysis": return await handleImpactAnalysis(args);
+      case "impact_analysis":      return await handleImpactAnalysis(args);
+      case "test_recommendation":  return await handleTestRecommendation(args);
+      case "risk_assessment":      return await handleRiskAssessment(args);
       default: throw new Error(`未知工具: ${toolName}`);
     }
   } catch (err: any) {

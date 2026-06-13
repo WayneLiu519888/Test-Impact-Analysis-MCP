@@ -118,4 +118,44 @@ export const TOOL_SCHEMAS = [
       required: ["mode"],
     },
   },
+  {
+    name: "test_recommendation",
+    description:
+      "基于代码变更智能推荐测试用例执行顺序。在 Phase 2 影响分析结果上计算推荐分，\n" +
+      "按优先级排序测试用例，生成最小可行测试集（覆盖所有高风险模块的最少测试）。\n\n" +
+      '  test_recommendation(name="gh-backend")  — 分析从水位到 HEAD\n' +
+      '  test_recommendation(module="用户中心")   — 按模块分析\n\n' +
+      "推荐分 = 风险权重(h=100/m=50/l=20) × 置信度(0-100)\n" +
+      "强烈建议(≥7000) | 建议(≥2000) | 可选(<2000)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name:   { type: "string", description: "仓库别名" },
+        module: { type: "string", description: "模块名" },
+        from:   { type: "string", description: "起始 SHA（不传=当前水位）" },
+        to:     { type: "string", description: "目标 SHA（不传=远程 HEAD）" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "risk_assessment",
+    description:
+      "量化代码变更风险，生成风险评分（0-100）与缓解建议。\n" +
+      "综合文件变更数量、受影响模块的风险等级分布、置信度三个维度计算。\n\n" +
+      '  risk_assessment(name="gh-backend")  — 评估从水位到 HEAD 的风险\n' +
+      '  risk_assessment(module="用户中心")   — 按模块评估\n\n' +
+      "评分: files(0-60) + modules(0-40) + confidencePenalty(0-20) = 0-100\n" +
+      "等级: 0-30=低风险 | 31-60=中等 | 61-85=高风险 | 86-100=严重",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name:   { type: "string", description: "仓库别名" },
+        module: { type: "string", description: "模块名" },
+        from:   { type: "string", description: "起始 SHA（不传=当前水位）" },
+        to:     { type: "string", description: "目标 SHA（不传=远程 HEAD）" },
+      },
+      required: [],
+    },
+  },
 ];

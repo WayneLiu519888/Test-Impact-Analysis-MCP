@@ -7,8 +7,8 @@ import { strictEqual, ok as assertOk } from "node:assert/strict";
 import { TOOL_SCHEMAS } from "../tools/schemas.js";
 
 describe("TOOL_SCHEMAS", () => {
-  it("应包含恰好 4 个 Tool", () => {
-    strictEqual(TOOL_SCHEMAS.length, 4);
+  it("应包含恰好 6 个 Tool", () => {
+    strictEqual(TOOL_SCHEMAS.length, 6);
   });
 
   it("工具名称正确", () => {
@@ -17,6 +17,8 @@ describe("TOOL_SCHEMAS", () => {
     strictEqual(names[1], "TIA-init");
     strictEqual(names[2], "repo_monitor");
     strictEqual(names[3], "repo_clone");
+    strictEqual(names[4], "test_recommendation");
+    strictEqual(names[5], "risk_assessment");
   });
 
   it("每个 Tool 都有 description 和 inputSchema", () => {
