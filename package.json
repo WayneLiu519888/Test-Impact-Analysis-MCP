@@ -1,0 +1,22 @@
+{
+  "name": "test-impact-analysis-mcp",
+  "version": "1.0.0",
+  "description": "面向软件测试人员的 MCP 工具集，覆盖变更感知→影响分析→用例推荐→风险评估全链路",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "npx tsx src/index.ts",
+    "dev": "npx tsx --watch src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

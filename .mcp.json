@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "test-impact-analysis": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "D:/0_WayneArchiveFiles/MCP-Servers/Test-Impact-Analysis-mcp/src/index.ts"
+      ],
+      "type": "stdio"
+    }
+  }
+}

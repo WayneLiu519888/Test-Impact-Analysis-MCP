@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 运行时状态（由程序自动维护，不应提交）
+monitors.json
+
+# 克隆的第三方仓库
+Repository/
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 环境变量文件
+.env
+.env.local

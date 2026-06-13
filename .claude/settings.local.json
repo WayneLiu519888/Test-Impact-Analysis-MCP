@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/1/.claude/**)",
+      "Read(//c/Users/1/**)",
+      "Read(//c/Users/1/.claude-code-router/**)",
+      "Read(//c/Users/1/.ccr/**)",
+      "Bash(tasklist)",
+      "Bash(netstat -ano)",
+      "mcp__test-impact-analysis__list_monitors"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "test-impact-analysis"
+  ]
+}

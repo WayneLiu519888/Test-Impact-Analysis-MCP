@@ -1,0 +1,18 @@
+# Codex 配置文件 — Test Impact Analysis MCP 服务器注册
+#
+# 使用方法：
+#   1. 将本文件内容合并到 ~/.codex/config.toml（用户级）
+#      或复制到 .codex/config.toml（项目级）
+#   2. 按需调整 command / args / cwd
+#   3. 重启 Codex 使配置生效
+
+[mcp_servers.test-impact-analysis]
+command = "npx"
+args = ["tsx", "src/index.ts"]
+cwd = "${PROJECT_ROOT}"
+enabled = true
+# startup_timeout_sec = 10    # 启动超时，默认 10s
+# tool_timeout_sec = 60       # 工具调用超时，默认 60s
+
+# 工具级别审批策略（可选）
+# default_tools_approval_mode = "auto"   # auto | prompt | approve

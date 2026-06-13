@@ -1,0 +1,13 @@
+{
+  "_说明": "OpenCode 配置文件。MCP 服务器注册在此文件的 mcpServers 段。",
+  "_用法": "将本文件复制到项目根目录或 $HOME/.opencode.json，按需调整 command 路径。",
+
+  "mcpServers": {
+    "test-impact-analysis": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "${PROJECT_ROOT}"
+    }
+  }
+}
