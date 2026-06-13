@@ -120,15 +120,26 @@ describe("autoInfer", () => {
 // ═══════════════════════════════════════════════════════
 
 describe("dedupByTestPath", () => {
-  it("同一 testPath 保留最高置信度", () => {
+  it("同一 (testPath+ruleId) 保留最高置信度", () => {
     const matches = [
       { ruleId: "a", ruleName: "A", changedFile: "f1.ts", testPath: "t1.test.ts", confidence: 60, matchType: "directory" as const },
-      { ruleId: "b", ruleName: "B", changedFile: "f2.ts", testPath: "t1.test.ts", confidence: 90, matchType: "exact" as const },
+      { ruleId: "a", ruleName: "A", changedFile: "f2.ts", testPath: "t1.test.ts", confidence: 90, matchType: "exact" as const },
     ];
     const result = dedupByTestPath(matches);
+    // 同一 ruleId + 同一 testPath → 去重保留最高置信度
     strictEqual(result.length, 1);
     strictEqual(result[0].confidence, 90);
-    strictEqual(result[0].ruleId, "b");
+    strictEqual(result[0].ruleId, "a");
+  });
+
+  it("不同 ruleId 即使 testPath 相同也不去重", () => {
+    const matches = [
+      { ruleId: "a", ruleName: "A", changedFile: "f1.ts", testPath: "t1.test.ts", confidence: 60, matchType: "directory" as const },
+      { ruleId: "b", ruleName: "B", changedFile: "f1.ts", testPath: "t1.test.ts", confidence: 80, matchType: "directory" as const },
+    ];
+    const result = dedupByTestPath(matches);
+    // 不同 ruleId → 各自保留
+    strictEqual(result.length, 2);
   });
 });
 

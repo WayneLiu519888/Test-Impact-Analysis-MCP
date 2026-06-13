@@ -1,0 +1,24 @@
+{
+  "rules": [
+    {
+      "id": "example-auth",
+      "name": "认证模块示例",
+      "description": "登录、注册、Token 刷新相关的文件变更会触发此规则（示例）",
+      "filePatterns": [
+        "src/auth/**",
+        "src/login/**"
+      ],
+      "testPaths": [
+        "tests/auth/login.test.ts",
+        "tests/auth/register.test.ts"
+      ],
+      "riskLevel": "high"
+    }
+  ],
+  "autoInfer": {
+    "enabled": true,
+    "sourceToTestMapping": {
+      "src/": "tests/"
+    }
+  }
+}

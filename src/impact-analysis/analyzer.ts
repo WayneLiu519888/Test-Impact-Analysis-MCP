@@ -39,16 +39,16 @@ import type {
  * @param anchor   是否精确匹配整行 (^...$)
  */
 function globToRegex(pattern: string, anchor = true): RegExp {
-  // 转义正则特殊字符（除了 * ? { } ,）
+  // 转义正则特殊字符。注意：{} 不逃逸——它们先被花括号展开处理。
   let re = pattern
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/[.+^$()|[\]\\]/g, "\\$&")
     // ** → 匹配任意字符（含 /）
     .replace(/\*\*/g, "<<<GLOBSTAR>>>")
     // * → 匹配单层（不含 /）
     .replace(/\*/g, "[^/]*")
     // ? → 单字符
     .replace(/\?/g, "[^/]")
-    // {a,b} → (a|b)
+    // {a,b} → (a|b) — 必须在 ** 展开之后
     .replace(/\{([^}]+)\}/g, (_, group) => `(${group.replace(/,/g, "|")})`)
     // 恢复 **
     .replace(/<<<GLOBSTAR>>>/g, ".*");
@@ -262,34 +262,37 @@ export function analyzeImpact(
     }
   }
 
-  // 3. 去重：同一个 testPath 被多次匹配时取最高置信度
-  const deduped = dedupByTestPath(ruleMatches);
+  // 3. 先聚合（收集所有 changedFiles），再模块内去重 testPaths
+  const modules = aggregateMatches(ruleMatches);
 
-  // 4. 聚合为模块
-  const modules = applyRiskLevels(aggregateMatches(deduped), config.rules);
-
-  // 5. 按置信度降序排列
-  modules.sort((a, b) => b.confidence - a.confidence);
+  // 4. 应用风险等级 + 排序
+  const result = applyRiskLevels(modules, config.rules);
+  result.sort((a, b) => b.confidence - a.confidence);
 
   return {
     repoName,
     fromSha,
     toSha,
     changedFiles,
-    impactedModules: modules,
-    matches: deduped,
+    impactedModules: result,
+    matches: ruleMatches,
   };
 }
 
 /**
- * 去重：同一个 testPath 被多条规则命中时，保留置信度最高的。
+ * 去重：同一个 (testPath, ruleId) 被多次命中时，保留置信度最高的。
+ * 不同 changedFile 的匹配会被合并，不丢失触发文件信息。
  */
 function dedupByTestPath(matches: ImpactMatch[]): ImpactMatch[] {
   const best = new Map<string, ImpactMatch>();
   for (const m of matches) {
-    const existing = best.get(m.testPath);
+    const key = `${m.testPath}::${m.ruleId}`;
+    const existing = best.get(key);
     if (!existing || m.confidence > existing.confidence) {
-      best.set(m.testPath, m);
+      best.set(key, { ...m });
+    } else if (m.confidence === existing.confidence && m.changedFile !== existing.changedFile) {
+      // 同置信度但不同触发文件 → 保留第一个，不丢失信息
+      // (changedFiles 聚合在 aggregateMatches 中处理)
     }
   }
   return Array.from(best.values());
