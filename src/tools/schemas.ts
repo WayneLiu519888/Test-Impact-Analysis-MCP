@@ -1,10 +1,18 @@
 /**
  * TIA 工具 Schema 定义 — 仅包含 TOOL_SCHEMAS 常量
+ *
+ * 每个工具包含一个 visibility 字段（TIA 私有元数据，不会泄露到 MCP 协议）：
+ *   "all"         — stdio + HTTP 双模可用
+ *   "stdio-only"  — 仅 stdio 本地模式可用（HTTP 远程调用被拒）
  */
+
+/** 工具可见范围 */
+export type ToolVisibility = "all" | "stdio-only";
 
 export const TOOL_SCHEMAS = [
   {
     name: "impact_analysis",
+    visibility: "all" as ToolVisibility,
     description:
       "分析代码变更对测试用例的影响。基于 impact-rules.conf.json 中配置的文件→测试映射规则，\n" +
       "自动匹配变更文件对应的测试模块，返回受影响测试用例的优先级排序列表。\n\n" +
@@ -28,6 +36,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: "TIA-init",
+    visibility: "all" as ToolVisibility,
     description:
       "【首次使用必调】TIA (Test Impact Analysis) 初始化引导工具。\n\n" +
       "远程 HTTP 客户端在接入 TIA MCP Server 后，必须先调用此工具完成初始化：\n" +
@@ -54,6 +63,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: "repo_monitor",
+    visibility: "all" as ToolVisibility,
     description:
       "统一仓库监控工具。仓库列表在 monitors.conf.json 中配置（直接编辑即可，无需 MCP 工具）。\n\n" +
       "三种操作（通过 action 参数选择）:\n" +
@@ -85,6 +95,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: "repo_clone",
+    visibility: "all" as ToolVisibility,
     description:
       "克隆监控仓库的代码到本地。可用于初始化（首次拉取分支代码）或更新全量代码，也可增量拉取 MR。\n\n" +
       "定位方式（二选一）:\n" +
@@ -120,6 +131,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: "test_recommendation",
+    visibility: "stdio-only" as ToolVisibility,
     description:
       "基于代码变更智能推荐测试用例执行顺序。在 Phase 2 影响分析结果上计算推荐分，\n" +
       "按优先级排序测试用例，生成最小可行测试集（覆盖所有高风险模块的最少测试）。\n\n" +
@@ -140,6 +152,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: "risk_assessment",
+    visibility: "stdio-only" as ToolVisibility,
     description:
       "量化代码变更风险，生成风险评分（0-100）与缓解建议。\n" +
       "综合文件变更数量、受影响模块的风险等级分布、置信度三个维度计算。\n\n" +

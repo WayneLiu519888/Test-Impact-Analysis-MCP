@@ -22,7 +22,7 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { TOOL_SCHEMAS, handleToolCall, setTransportMode, TRANSPORT } from "./tools/index.js";
+import { handleToolCall, setTransportMode, TRANSPORT, getTransportMode, getFilteredSchemas } from "./tools/index.js";
 import { ensureConfigFile, validateConfig, listRepoConfigs } from "./state.js";
 import { ensureServerConf, checkIpAccess, checkOriginAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
 import { ensureImpactConfig } from "./impact-analysis/state.js";
@@ -68,7 +68,7 @@ const server = new Server(
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOL_SCHEMAS,
+  tools: getFilteredSchemas(getTransportMode()),
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {

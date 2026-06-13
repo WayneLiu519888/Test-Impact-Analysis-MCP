@@ -5,6 +5,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, ok as assertOk } from "node:assert/strict";
 import { TOOL_SCHEMAS } from "../tools/schemas.js";
+import { getFilteredSchemas } from "../tools/index.js";
 
 describe("TOOL_SCHEMAS", () => {
   it("应包含恰好 6 个 Tool", () => {
@@ -67,6 +68,49 @@ describe("TOOL_SCHEMAS", () => {
       const schema = TOOL_SCHEMAS.find((t) => t.name === "TIA-init")!;
       deepEquals(schema.inputSchema.required, []);
     });
+  });
+});
+
+  describe("visibility 分级", () => {
+    it("4 个 all + 2 个 stdio-only", () => {
+      const allTools = TOOL_SCHEMAS.filter((t) => (t as any).visibility === "all");
+      const stdioOnly = TOOL_SCHEMAS.filter((t) => (t as any).visibility === "stdio-only");
+      strictEqual(allTools.length, 4, "应有 4 个 all 工具");
+      strictEqual(stdioOnly.length, 2, "应有 2 个 stdio-only 工具");
+
+      // 具体工具分配
+      const allNames = allTools.map((t) => t.name).sort();
+      const stdioNames = stdioOnly.map((t) => t.name).sort();
+      deepEquals(allNames, ["TIA-init", "impact_analysis", "repo_clone", "repo_monitor"]);
+      deepEquals(stdioNames, ["risk_assessment", "test_recommendation"]);
+    });
+  });
+describe("getFilteredSchemas", () => {
+  it("stdio 模式返回全部 6 个工具", () => {
+    const filtered = getFilteredSchemas("stdio");
+    strictEqual(filtered.length, 6);
+  });
+
+  it("HTTP 模式仅返回 4 个 all 工具", () => {
+    const filtered = getFilteredSchemas("http");
+    strictEqual(filtered.length, 4);
+    const names = filtered.map((t: any) => t.name).sort();
+    deepEquals(names, ["TIA-init", "impact_analysis", "repo_clone", "repo_monitor"]);
+  });
+
+  it("过滤后的 Schema 不含 visibility 私有字段", () => {
+    const filtered = getFilteredSchemas("http");
+    for (const tool of filtered) {
+      strictEqual("visibility" in tool, false, `${(tool as any).name} 泄露了 visibility`);
+    }
+  });
+
+  it("过滤后仍保留完整 MCP 字段", () => {
+    for (const tool of getFilteredSchemas("stdio")) {
+      assertOk(typeof (tool as any).name === "string");
+      assertOk(typeof (tool as any).description === "string");
+      assertOk((tool as any).inputSchema?.type === "object");
+    }
   });
 });
 
