@@ -22,11 +22,15 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { TOOL_SCHEMAS, handleToolCall, setTransportMode } from "./tools/index.js";
+import { TOOL_SCHEMAS, handleToolCall, setTransportMode, TRANSPORT } from "./tools/index.js";
 import { ensureConfigFile, validateConfig, listRepoConfigs } from "./state.js";
 import { ensureServerConf, checkIpAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
 
-/** Express Request 的最小类型声明（避免依赖 @types/express） */
+/**
+ * Express 请求/响应的最小类型声明。
+ * 刻意不使用 @types/express：Express.js 仅 HTTP 模式启动，仅需两个接口。
+ * 如需更完整类型 → `npm i -D @types/express` 后替换为 `import type { Request, Response } from "express"`。
+ */
 interface ExpressReq {
   headers: Record<string, string | string[] | undefined>;
   socket?: { remoteAddress?: string };
@@ -75,9 +79,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 // ═══════════════════════════════════════════════════════════
 
 async function main() {
-  const mode = (process.env.MCP_TRANSPORT || "stdio").toLowerCase();
+  const mode = (process.env.MCP_TRANSPORT || TRANSPORT.STDIO).toLowerCase();
 
-  if (mode === "http") {
+  if (mode === TRANSPORT.HTTP) {
     await startHttpMode();
   } else {
     await startStdioMode();
@@ -87,7 +91,7 @@ async function main() {
 // ── Stdio 模式 ────────────────────────────────────────
 
 async function startStdioMode() {
-  setTransportMode("stdio");
+  setTransportMode(TRANSPORT.STDIO);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("[TIA] v1.0.0 [stdio] 已就绪");
@@ -96,7 +100,7 @@ async function startStdioMode() {
 // ── HTTP 模式 ─────────────────────────────────────────
 
 async function startHttpMode() {
-  setTransportMode("http");
+  setTransportMode(TRANSPORT.HTTP);
   const serverConf = ensureServerConf();
 
   // 环境变量 MCP_PORT 优先级最高，可覆盖 server.conf.json 的 port

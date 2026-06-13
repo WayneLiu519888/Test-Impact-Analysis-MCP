@@ -9,7 +9,7 @@
  *   repo-clone.ts  — 全量/增量克隆 + 远程指令（~225 行）
  */
 
-import { ok, getTransportMode, throttleTouchApiKey } from "./helpers.js";
+import { ok, getTransportMode, throttleTouchApiKey, TRANSPORT } from "./helpers.js";
 import { getRequestAuth } from "../security.js";
 import { handleTiaInit } from "./tia-init.js";
 import { handleRepoMonitor } from "./repo-monitor.js";
@@ -19,7 +19,7 @@ import { handleRepoClone } from "./repo-clone.js";
 export { TOOL_SCHEMAS } from "./schemas.js";
 
 // Re-export transport control
-export { setTransportMode } from "./helpers.js";
+export { setTransportMode, TRANSPORT } from "./helpers.js";
 
 // ── 路由 ───────────────────────────────────────────
 
@@ -29,7 +29,7 @@ export async function handleToolCall(
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   try {
     // HTTP 模式的 API KEY 校验（stdio 免检，TIA-init 免检）
-    if (getTransportMode() === "http" && toolName !== "TIA-init") {
+    if (getTransportMode() === TRANSPORT.HTTP && toolName !== "TIA-init") {
       const auth = getRequestAuth();
       if (!auth || !auth.apiKeyEntry) {
         return ok("❌ 认证失败：请先执行 TIA-init 工具完成初始化引导。\n   TIA-init 将自动为你签发 API KEY 并注册命令文件。");

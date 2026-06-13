@@ -11,7 +11,7 @@
  *   - 配置中无 & 状态中有  →  用户已从配置中移除，忽略
  */
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
 import { join } from "path";
 import { PROJECT_ROOT } from "./paths.js";
 import { fileURLToPath } from "url";
@@ -38,6 +38,18 @@ const MAX_SNAPSHOT_COUNT = 20;
 /** 配置文件路径 — 使用共享 paths 模块 */
 const CONFIG_FILE = join(PROJECT_ROOT, "monitors.conf.json");
 const STATE_FILE = join(PROJECT_ROOT, "monitors.json");
+
+// ═══════════════════════════════════════════════════════════
+// 内存缓存 — 避免批量操作时反复 readFileSync
+// ═══════════════════════════════════════════════════════════
+
+/** 获取文件的最后修改时间（毫秒时间戳），文件不存在返回 0 */
+function fileMtime(filePath: string): number {
+  try { return statSync(filePath).mtimeMs; } catch { return 0; }
+}
+
+let _configCache: { data: MonitorConfigFile; mtime: number } | null = null;
+let _stateCache: { data: MonitorStateFile; mtime: number } | null = null;
 
 /**
  * 获取代码克隆的根目录（用户可在 monitors.conf.json 中配置 baseDir）。
@@ -116,18 +128,24 @@ function safeJsonLoad<T>(filePath: string, fallback: () => T, label: string): T 
 // 配置文件读写（monitors.conf.json）
 // ═══════════════════════════════════════════════════════════
 
-/** 读取用户手写的配置文件 */
+/** 读取用户手写的配置文件（带 mtime 缓存） */
 export function loadConfig(): MonitorConfigFile {
+  const mtime = fileMtime(CONFIG_FILE);
+  if (_configCache && _configCache.mtime === mtime) return _configCache.data;
+
   const parsed = safeJsonLoad<any>(CONFIG_FILE, () => ({ repositories: [] }), "monitors.conf.json");
-  return {
+  const data: MonitorConfigFile = {
     baseDir: typeof parsed.baseDir === "string" ? parsed.baseDir : undefined,
     repositories: Array.isArray(parsed.repositories) ? parsed.repositories : [],
   };
+  _configCache = { data, mtime };
+  return data;
 }
 
-/** 写入配置文件 */
+/** 写入配置文件（同时失效缓存） */
 export function saveConfig(config: MonitorConfigFile): void {
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { encoding: "utf-8", mode: 0o600 });
+  _configCache = null;
 }
 
 /** 按 name 查找配置中的某个仓库 */
@@ -173,14 +191,20 @@ export function listRepoConfigs(): RepoConfig[] {
 // 状态文件读写（monitors.json）
 // ═══════════════════════════════════════════════════════════
 
-/** 读取运行时状态 */
+/** 读取运行时状态（带 mtime 缓存） */
 export function loadState(): MonitorStateFile {
-  return safeJsonLoad<MonitorStateFile>(STATE_FILE, () => ({}), "monitors.json");
+  const mtime = fileMtime(STATE_FILE);
+  if (_stateCache && _stateCache.mtime === mtime) return _stateCache.data;
+
+  const data = safeJsonLoad<MonitorStateFile>(STATE_FILE, () => ({}), "monitors.json");
+  _stateCache = { data, mtime };
+  return data;
 }
 
-/** 写入运行时状态 */
+/** 写入运行时状态（同时失效缓存） */
 export function saveState(state: MonitorStateFile): void {
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), { encoding: "utf-8", mode: 0o600 });
+  _stateCache = null;
 }
 
 /** 读取单个仓库的运行时状态（不存在返回 undefined） */

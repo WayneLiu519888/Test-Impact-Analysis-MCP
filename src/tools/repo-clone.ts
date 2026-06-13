@@ -13,7 +13,7 @@ import {
   getBaseDir,
 } from "../state.js";
 import { ok, requireString, optionalString } from "./helpers.js";
-import { getAdapter, getTransportMode } from "./helpers.js";
+import { getAdapter, getTransportMode, TRANSPORT } from "./helpers.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -57,7 +57,7 @@ export async function handleRepoClone(args: Record<string, unknown>): Promise<{ 
     if (repos.length === 0) return ok(`未找到属于模块 "${moduleName}" 的仓库。请检查 monitors.conf.json 配置文件。`);
   }
 
-  const isRemote = getTransportMode() === "http";
+  const isRemote = getTransportMode() === TRANSPORT.HTTP;
   const resolvedBaseDir = isRemote && clientBaseDir
     ? clientBaseDir.replace(/\\/g, "/")
     : getBaseDir();

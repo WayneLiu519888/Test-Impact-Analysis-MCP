@@ -5,7 +5,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { PROJECT_ROOT } from "../paths.js";
-import { ok, optionalString, getTransportMode } from "./helpers.js";
+import { ok, optionalString, getTransportMode, TRANSPORT } from "./helpers.js";
 import { getRequestAuth, loadServerConf, saveServerConf, issueApiKey } from "../security.js";
 import type { ToolResult } from "./helpers.js";
 
@@ -42,7 +42,7 @@ function getCmdBundles(): CmdBundle[] {
 // ═══════════════════════════════════════════════════════
 
 export async function handleTiaInit(args: Record<string, unknown>): Promise<ToolResult> {
-  if (getTransportMode() !== "http") {
+  if (getTransportMode() !== TRANSPORT.HTTP) {
     return ok("ℹ️ TIA-init 仅在 HTTP 远程模式下需要执行。\n   当前为 stdio 本地模式，可直接使用 /repo_monitor 和 /repo_clone。");
   }
 

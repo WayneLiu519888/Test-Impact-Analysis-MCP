@@ -35,8 +35,15 @@ export function getAdapter(platform: MonitorEntry["platform"]): PlatformAdapter 
 // Transport 感知
 // ═══════════════════════════════════════════════════════
 
-type TransportMode = "stdio" | "http";
-let _transportMode: TransportMode = "stdio";
+export type TransportMode = "stdio" | "http";
+
+/** Transport 模式常量，避免散落字符串字面量 */
+export const TRANSPORT = {
+  STDIO: "stdio" as const,
+  HTTP: "http" as const,
+} as const;
+
+let _transportMode: TransportMode = TRANSPORT.STDIO;
 
 export function setTransportMode(mode: TransportMode): void { _transportMode = mode; }
 export function getTransportMode(): TransportMode { return _transportMode; }
