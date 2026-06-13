@@ -8,7 +8,8 @@
       "Bash(tasklist)",
       "Bash(netstat -ano)",
       "mcp__test-impact-analysis__list_monitors",
-      "mcp__plugin_github_github__get_file_contents"
+      "mcp__plugin_github_github__get_file_contents",
+      "mcp__plugin_github_github__search_repositories"
     ]
   },
   "enableAllProjectMcpServers": true,
