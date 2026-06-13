@@ -16,18 +16,12 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
 import { AsyncLocalStorage } from "async_hooks";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import type { IncomingMessage } from "http";
 import type { ServerConf, ApiKeyEntry } from "./types.js";
+import { PROJECT_ROOT } from "./paths.js";
 
-// ESM __dirname 等价物
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-/** MCP Server 项目根目录 — 定位所有配置文件 */
-const CFG_ROOT = join(__dirname, "..");
-const SERVER_CONF_FILE = join(CFG_ROOT, "server.conf.json");
+const SERVER_CONF_FILE = join(PROJECT_ROOT, "server.conf.json");
 
 // ═══════════════════════════════════════════════════════════
 // 配置文件读写
@@ -56,7 +50,9 @@ export function loadServerConf(): ServerConf {
       allowedIps: parsed.allowedIps ?? DEFAULT_SERVER_CONF.allowedIps,
       xForwardedFor: parsed.xForwardedFor ?? DEFAULT_SERVER_CONF.xForwardedFor,
       contactInfo: parsed.contactInfo,
-      apiKeys: Array.isArray(parsed.apiKeys) ? parsed.apiKeys : [],
+      apiKeys: Array.isArray(parsed.apiKeys)
+        ? parsed.apiKeys
+        : (console.error("[TIA] ⚠️ server.conf.json 的 apiKeys 字段不是数组，已重置为空。请检查配置文件。"), []),
     };
   } catch {
     return structuredClone(DEFAULT_SERVER_CONF);

@@ -7,7 +7,8 @@
       "Read(//c/Users/1/.ccr/**)",
       "Bash(tasklist)",
       "Bash(netstat -ano)",
-      "mcp__test-impact-analysis__list_monitors"
+      "mcp__test-impact-analysis__list_monitors",
+      "mcp__plugin_github_github__get_file_contents"
     ]
   },
   "enableAllProjectMcpServers": true,

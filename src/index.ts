@@ -22,7 +22,7 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { TOOL_SCHEMAS, handleToolCall, setTransportMode } from "./tools.js";
+import { TOOL_SCHEMAS, handleToolCall, setTransportMode } from "./tools/index.js";
 import { ensureConfigFile, validateConfig, listRepoConfigs } from "./state.js";
 import { ensureServerConf, checkIpAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
 

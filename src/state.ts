@@ -12,7 +12,8 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { join } from "path";
+import { PROJECT_ROOT } from "./paths.js";
 import { fileURLToPath } from "url";
 import type {
   RepoConfig,
@@ -25,14 +26,18 @@ import type {
   GitUrlInfo,
 } from "./types.js";
 
-// ESM __dirname 等价物
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// ═══════════════════════════════════════════════════════════
+// 常量
+// ═══════════════════════════════════════════════════════════
 
-/** MCP Server 项目自身的根目录 — 仅用于定位配置文件（monitors.conf.json / monitors.json） */
-const CFG_ROOT = join(__dirname, "..");
-const CONFIG_FILE = join(CFG_ROOT, "monitors.conf.json");
-const STATE_FILE = join(CFG_ROOT, "monitors.json");
+/** seenShas 去重集最大保留条数 */
+const MAX_SEEN_SHAS = 500;
+/** 水位快照最大保留条数 */
+const MAX_SNAPSHOT_COUNT = 20;
+
+/** 配置文件路径 — 使用共享 paths 模块 */
+const CONFIG_FILE = join(PROJECT_ROOT, "monitors.conf.json");
+const STATE_FILE = join(PROJECT_ROOT, "monitors.json");
 
 /**
  * 获取代码克隆的根目录（用户可在 monitors.conf.json 中配置 baseDir）。
@@ -46,7 +51,7 @@ export function getBaseDir(): string {
   if (config.baseDir && config.baseDir.trim()) {
     return config.baseDir.trim().replace(/\\/g, "/");
   }
-  return CFG_ROOT;
+  return PROJECT_ROOT;
 }
 
 /** 默认认证：无认证。绝大多数场景下本地 git 已通过 SSH 完成鉴权。 */
@@ -88,16 +93,32 @@ export function parseGitUrl(url: string): GitUrlInfo {
 }
 
 // ═══════════════════════════════════════════════════════════
+// 通用安全 JSON 加载
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * 安全加载 JSON 文件。文件不存在或格式错误时返回 fallback，并将错误输出到 stderr。
+ * 避免 JSON 解析异常直接暴露给用户。
+ */
+function safeJsonLoad<T>(filePath: string, fallback: () => T, label: string): T {
+  if (!existsSync(filePath)) {
+    return fallback();
+  }
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as T;
+  } catch (err: any) {
+    console.error(`[TIA] ⚠️ ${label} 文件格式错误，已重置为默认值: ${err.message}`);
+    return fallback();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // 配置文件读写（monitors.conf.json）
 // ═══════════════════════════════════════════════════════════
 
 /** 读取用户手写的配置文件 */
 export function loadConfig(): MonitorConfigFile {
-  if (!existsSync(CONFIG_FILE)) {
-    return { repositories: [] };
-  }
-  const raw = readFileSync(CONFIG_FILE, "utf-8");
-  const parsed = JSON.parse(raw);
+  const parsed = safeJsonLoad<any>(CONFIG_FILE, () => ({ repositories: [] }), "monitors.conf.json");
   return {
     baseDir: typeof parsed.baseDir === "string" ? parsed.baseDir : undefined,
     repositories: Array.isArray(parsed.repositories) ? parsed.repositories : [],
@@ -154,11 +175,7 @@ export function listRepoConfigs(): RepoConfig[] {
 
 /** 读取运行时状态 */
 export function loadState(): MonitorStateFile {
-  if (!existsSync(STATE_FILE)) {
-    return {};
-  }
-  const raw = readFileSync(STATE_FILE, "utf-8");
-  return JSON.parse(raw);
+  return safeJsonLoad<MonitorStateFile>(STATE_FILE, () => ({}), "monitors.json");
 }
 
 /** 写入运行时状态 */
@@ -231,7 +248,7 @@ export function updateWatermark(
 
   const seen = new Set(st.seenShas);
   for (const sha of newCommitShas) seen.add(sha);
-  st.seenShas = Array.from(seen).slice(-500); // 最多保留 500 条
+  st.seenShas = Array.from(seen).slice(-MAX_SEEN_SHAS);
 
   state[name] = st;
   saveState(state);
@@ -259,7 +276,7 @@ export function resetWatermark(name: string, newSha: string, label: string): Wat
   // 归档旧水位
   const snaps = st.snapshots ?? [];
   snaps.unshift(snapshot);
-  st.snapshots = snaps.slice(0, 20);
+  st.snapshots = snaps.slice(0, MAX_SNAPSHOT_COUNT);
 
   // 重置水位
   st.lastSha = newSha;
