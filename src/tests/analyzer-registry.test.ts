@@ -37,11 +37,18 @@ describe("DEFAULT_ANALYZER_CONFIG", () => {
 // ═══════════════════════════════════════════════════════
 
 describe("matchAnalyzers", () => {
-  it("无启用的分析器时返回空数组", () => {
-    // jacg 默认 disabled，所以 matchAnalyzers 应返回空
+  it("JACG 已启用 → .java 文件被匹配", () => {
+    // JACG 在 analyzers.conf.json 中已启用
     const result = matchAnalyzers(["src/main/Service.java", "src/main/Utils.kt"]);
-    // 由于 analyzers.conf.json 中 jacg 的 enabled=false，应无匹配
-    strictEqual(result.length, 0, "禁用分析器不应匹配");
+    strictEqual(result.length, 1, "应有 1 个分析器匹配");
+    strictEqual(result[0].adapter.id, "jacg", "匹配的分析器应为 jacg");
+    strictEqual(result[0].matchedFiles.length, 1, "仅 .java 文件被匹配");
+    strictEqual(result[0].matchedFiles[0], "src/main/Service.java");
+  });
+
+  it("非 Java 文件不被 JACG 匹配", () => {
+    const result = matchAnalyzers(["src/app.ts", "src/lib.py"]);
+    strictEqual(result.length, 0, ".ts/.py 文件不应被 JACG 匹配");
   });
 
   it("空变更文件返回空", () => {
