@@ -7,15 +7,16 @@ import { strictEqual, ok as assertOk } from "node:assert/strict";
 import { TOOL_SCHEMAS } from "../tools/schemas.js";
 
 describe("TOOL_SCHEMAS", () => {
-  it("应包含恰好 3 个 Tool", () => {
-    strictEqual(TOOL_SCHEMAS.length, 3);
+  it("应包含恰好 4 个 Tool", () => {
+    strictEqual(TOOL_SCHEMAS.length, 4);
   });
 
   it("工具名称正确", () => {
     const names = TOOL_SCHEMAS.map((t) => t.name);
-    strictEqual(names[0], "TIA-init");
-    strictEqual(names[1], "repo_monitor");
-    strictEqual(names[2], "repo_clone");
+    strictEqual(names[0], "impact_analysis");
+    strictEqual(names[1], "TIA-init");
+    strictEqual(names[2], "repo_monitor");
+    strictEqual(names[3], "repo_clone");
   });
 
   it("每个 Tool 都有 description 和 inputSchema", () => {

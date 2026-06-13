@@ -24,7 +24,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TOOL_SCHEMAS, handleToolCall, setTransportMode, TRANSPORT } from "./tools/index.js";
 import { ensureConfigFile, validateConfig, listRepoConfigs } from "./state.js";
-import { ensureServerConf, checkIpAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
+import { ensureServerConf, checkIpAccess, checkOriginAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
 
 /**
  * Express 请求/响应的最小类型声明。
@@ -111,14 +111,31 @@ async function startHttpMode() {
     }
   }
 
-  const app = createMcpExpressApp({ host: serverConf.host });
+  const app = createMcpExpressApp({
+    host: serverConf.host,
+    // 当 host 非 localhost 时显式传入 allowedHosts，启用 SDK 内建 DNS rebinding 防护
+    ...(serverConf.host !== "127.0.0.1" && serverConf.host !== "::1" && serverConf.host !== "localhost"
+      ? { allowedHosts: serverConf.allowedOrigins && serverConf.allowedOrigins.length > 0 ? serverConf.allowedOrigins : undefined }
+      : {}),
+  });
 
-  // ── 第 0 层安全：所有 /mcp 请求 → IP 白名单 + API KEY 预校验 ──
+  // ── 第 0 层安全：所有 /mcp 请求 → Origin → IP 白名单 → API KEY 预校验 ──
+  // Origin 不通过（DNS rebinding）→ 403
   // IP 不通过 → 403 立即拦截
   // API KEY 校验结果存入 RequestAuth，由 MCP 工具层决定是否放行
   //   - TIA-init → 免 API KEY（客户端首次引导）
   //   - 其他工具 → 必须持有效 API KEY
   app.use("/mcp", (req: ExpressReq, res: ExpressRes, next: () => void) => {
+    // Origin — DNS rebinding 防护（MCP 规范 MUST）
+    const originResult = checkOriginAccess(req, serverConf);
+    if (!originResult.ok) {
+      res.status(originResult.status ?? 403).json({
+        error: "Forbidden",
+        message: originResult.reason ?? "Origin 不允许",
+      });
+      return;
+    }
+
     // IP 白名单
     const ipResult = checkIpAccess(req, serverConf);
     if (!ipResult.ok) {
@@ -169,12 +186,18 @@ async function startHttpMode() {
       serverConf.allowedIps && serverConf.allowedIps.length > 0
         ? `${serverConf.allowedIps.length} 个 IP`
         : "⚠️ 未配置 IP 白名单";
+    const originStatus =
+      serverConf.host === "127.0.0.1" || serverConf.host === "::1" || serverConf.host === "localhost"
+        ? "跳过（localhost）"
+        : serverConf.allowedOrigins && serverConf.allowedOrigins.length > 0
+          ? `${serverConf.allowedOrigins.length} 个 Origin`
+          : "⚠️ 未配置 Origin 白名单";
 
     console.error(`[TIA] v1.0.0 [http] 已就绪`);
     console.error(`[TIA] 地址:    http://${serverConf.host}:${serverConf.port}`);
     console.error(`[TIA] MCP:     http://${serverConf.host}:${serverConf.port}/mcp`);
     console.error(`[TIA] Health:  http://${serverConf.host}:${serverConf.port}/health`);
-    console.error(`[TIA] IP白名单: ${ipStatus}  |  API KEY: ${authStatus}`);
+    console.error(`[TIA] Origin:  ${originStatus}  |  IP: ${ipStatus}  |  KEY: ${authStatus}`);
   });
 }
 

@@ -212,4 +212,23 @@ export class LocalGitAdapter implements PlatformAdapter {
       return [];
     }
   }
+
+  /**
+   * 获取两个 SHA 之间的变更文件列表。
+   * 使用 git diff --name-only。
+   */
+  async getDiffFiles(
+    repo: MonitorEntry,
+    base: string,
+    head: string
+  ): Promise<string[]> {
+    if (!repo.localPath) {
+      throw new Error(`仓库 ${repo.name} 缺少 localPath 配置`);
+    }
+    await this.git(repo.localPath, ["fetch", "origin", repo.branch]);
+    const output = await this.git(repo.localPath, [
+      "diff", "--name-only", `${base}...${head}`,
+    ]);
+    return output ? output.split("\n").filter(Boolean) : [];
+  }
 }

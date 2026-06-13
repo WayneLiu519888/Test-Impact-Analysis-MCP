@@ -4,6 +4,29 @@
 
 export const TOOL_SCHEMAS = [
   {
+    name: "impact_analysis",
+    description:
+      "分析代码变更对测试用例的影响。基于 impact-rules.conf.json 中配置的文件→测试映射规则，\n" +
+      "自动匹配变更文件对应的测试模块，返回受影响测试用例的优先级排序列表。\n\n" +
+      "使用方式:\n" +
+      '  impact_analysis(name="gh-backend")  — 分析从水位到 HEAD 的变更\n' +
+      '  impact_analysis(name="gh-backend", from="abc", to="def")  — 指定 SHA 范围\n' +
+      '  impact_analysis(module="用户中心")  — 按模块分析\n\n' +
+      "前提:\n" +
+      "  - 仓库已通过 repo_monitor(action='check') 初始化水位\n" +
+      "  - 已编辑 impact-rules.conf.json 配置文件→测试映射规则（可选，未配置则自动推断）",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name:   { type: "string", description: "仓库别名（与 module 二选一，不传则分析全部仓库）" },
+        module: { type: "string", description: "模块名（与 name 二选一，不传则分析全部仓库）" },
+        from:   { type: "string", description: "起始 SHA（不传则使用当前水位 lastSha）" },
+        to:     { type: "string", description: "目标 SHA（不传则使用远程 HEAD）" },
+      },
+      required: [],
+    },
+  },
+  {
     name: "TIA-init",
     description:
       "【首次使用必调】TIA (Test Impact Analysis) 初始化引导工具。\n\n" +

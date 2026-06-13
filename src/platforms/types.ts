@@ -62,4 +62,18 @@ export interface PlatformAdapter {
     repo: MonitorEntry,
     options: ListMrsOptions
   ): Promise<MrInfo[]>;
+
+  /**
+   * 获取两个 SHA 之间的变更文件列表（仅路径，不含 diff 内容）。
+   *
+   * @param repo  监控条目
+   * @param base  起始 SHA
+   * @param head  目标 SHA
+   * @returns 变更文件相对路径数组
+   */
+  getDiffFiles?(
+    repo: MonitorEntry,
+    base: string,
+    head: string
+  ): Promise<string[]>;
 }

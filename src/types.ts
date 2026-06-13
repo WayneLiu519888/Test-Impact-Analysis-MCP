@@ -186,11 +186,16 @@ export interface ApiKeyEntry {
 export interface ServerConf {
   /** HTTP 监听端口，默认 3100 */
   port: number;
-  /** 绑定地址，默认 "0.0.0.0" */
+  /** 绑定地址。MCP 规范建议绑定 127.0.0.1，通过反向代理对外暴露。
+   *  如需局域网共享则改为 0.0.0.0，同时必须配置 Origin 白名单。 */
   host: string;
   /** IP 白名单。支持精确 IP（192.168.1.100）和 CIDR 子网（192.168.0.0/16）。
    *  不配置 = 不限制 IP（仅校验 API KEY）。 */
   allowedIps?: string[];
+  /** Origin 白名单，用于 DNS rebinding 防护（MCP 规范 MUST 要求）。
+   *  不配置 = 不限制 Origin。仅当 host 非 127.0.0.1 时生效。
+   *  示例: ["https://claude.ai", "http://192.168.1.100:3100"] */
+  allowedOrigins?: string[];
   /** 是否信任 X-Forwarded-For 头（反向代理场景）。默认 false。 */
   xForwardedFor?: boolean;
   /** 联系人信息。IP 拦截时提示给客户端，如 "l30026134"。 */

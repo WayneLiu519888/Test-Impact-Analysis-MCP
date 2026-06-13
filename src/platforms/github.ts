@@ -226,4 +226,20 @@ export class GitHubAdapter implements PlatformAdapter {
       author: pr.user?.login ?? "unknown",
     };
   }
+
+  /**
+   * 获取两个 SHA 之间的变更文件列表。
+   * 使用 GitHub Compare API 的 files 字段。
+   */
+  async getDiffFiles(
+    repo: MonitorEntry,
+    base: string,
+    head: string
+  ): Promise<string[]> {
+    const data = await this.api(
+      repo,
+      `/repos/${repo.owner}/${repo.repo}/compare/${base}...${head}`
+    );
+    return (data.files ?? []).map((f: any) => f.filename as string);
+  }
 }

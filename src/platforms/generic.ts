@@ -401,4 +401,65 @@ export class GenericGitAdapter implements PlatformAdapter {
       author: mr.author?.name ?? mr.author_name ?? mr.user?.login ?? "unknown",
     };
   }
+
+  /**
+   * 获取两个 SHA 之间的变更文件列表。
+   *
+   * 通用平台无 /compare 端点。尝试策略：
+   *   1. 拉取 base..head 区间的 commit 列表
+   *   2. 从原始响应中尝试提取文件级变更数据
+   *   3. 不可用时给出明确提示
+   */
+  async getDiffFiles(
+    repo: MonitorEntry,
+    base: string,
+    head: string
+  ): Promise<string[]> {
+    if (!repo.genericConfig) {
+      throw new Error(`仓库 ${repo.name} 缺少 genericConfig 配置`);
+    }
+
+    const apiPath = this.buildUrl(
+      repo.genericConfig.apiTemplate,
+      repo,
+      repo.branch
+    );
+    const sep = apiPath.includes("?") ? "&" : "?";
+    const raw = await this.api(repo, `${apiPath}${sep}per_page=100`);
+    const all = this.extractArray(raw);
+
+    // 找到 base 之后的所有 commit
+    const baseIdx = all.findIndex((c: any) =>
+      (c.sha ?? c.id) === base
+    );
+    const range = baseIdx === -1 ? all : all.slice(0, baseIdx);
+
+    // 尝试从 commit 对象提取变更文件
+    const fileSet = new Set<string>();
+    for (const c of range) {
+      // GitLab 格式: c.stats / c.diff
+      // 通用格式: c.files / c.changed_files
+      const files =
+        c.files ??
+        c.changed_files ??
+        c.diff?.map((d: any) => d.new_path) ??
+        [];
+      if (Array.isArray(files)) {
+        for (const f of files) {
+          if (typeof f === "string") fileSet.add(f);
+          else if (f.new_path) fileSet.add(f.new_path as string);
+          else if (f.filename) fileSet.add(f.filename as string);
+        }
+      }
+    }
+
+    if (fileSet.size === 0) {
+      throw new Error(
+        `仓库 "${repo.name}" 的 API 响应中未包含文件级变更数据。\n` +
+        `建议: 使用 GitHub 或 local 平台以支持完整的 diff 分析，或为 generic 平台配置文件变更字段名。`
+      );
+    }
+
+    return Array.from(fileSet);
+  }
 }

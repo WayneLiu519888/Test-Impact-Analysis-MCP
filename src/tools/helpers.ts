@@ -88,19 +88,28 @@ export function resolveRepos(args: Record<string, unknown>): { repos: MonitorEnt
 }
 
 // ═══════════════════════════════════════════════════════
-// lastUsed 节流写入
+// lastUsed 节流写入（按 key 独立节流，避免 A 请求阻塞 B 的更新）
 // ═══════════════════════════════════════════════════════
 
 const API_KEY_TOUCH_INTERVAL_MS = 60_000;
-let _lastApiKeyTouch = 0;
+const _keyTouchTimers = new Map<string, number>();
 
 export function throttleTouchApiKey(entry: import("../types.js").ApiKeyEntry): void {
   const now = Date.now();
-  if (now - _lastApiKeyTouch < API_KEY_TOUCH_INTERVAL_MS) return;
-  _lastApiKeyTouch = now;
+  const last = _keyTouchTimers.get(entry.hash) ?? 0;
+  if (now - last < API_KEY_TOUCH_INTERVAL_MS) return;
+  _keyTouchTimers.set(entry.hash, now);
+
   try {
     const conf = loadServerConf();
     touchApiKey(conf.apiKeys, entry);
     saveServerConf(conf);
   } catch { /* 非关键操作，失败静默 */ }
+
+  // 定期清理过期的计时器条目，防止 Map 无限增长
+  if (_keyTouchTimers.size > 100) {
+    for (const [hash, ts] of _keyTouchTimers) {
+      if (now - ts > API_KEY_TOUCH_INTERVAL_MS * 2) _keyTouchTimers.delete(hash);
+    }
+  }
 }

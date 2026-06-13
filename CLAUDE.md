@@ -516,19 +516,21 @@ MCP_TRANSPORT=http npx tsx src/index.ts
 MCP_TRANSPORT=http MCP_PORT=4200 npx tsx src/index.ts
 ```
 
-### 安全认证流程（两层）
+### 安全认证流程（三层）
 
 ```
-第 0 层 (Express 中间件): 所有 /mcp 请求 → IP 白名单校验 → 通过/403
-                            │
-              ┌─────────────┼─────────────┐
-              ▼                           ▼
-         TIA-init 工具              其他所有工具
-         (免 API KEY)              (必检 API KEY)
-              │                           │
-              ▼                           ▼
-      签发 API KEY                  校验 API KEY
-      返回命令文件                  touchApiKey (更新 lastUsed)
+第 0 层 (Express 中间件): 所有 /mcp 请求 → Origin 校验（DNS rebinding 防护）→ IP 白名单 → 通过/403
+                                     │
+                       localhost 绑定自动跳过    非 localhost 需配置 allowedOrigins
+                                     │
+              ┌──────────────────────┼──────────────────┐
+              ▼                                         ▼
+         TIA-init 工具                            其他所有工具
+         (免 API KEY)                            (必检 API KEY)
+              │                                         │
+              ▼                                         ▼
+      签发 API KEY                                校验 API KEY
+      返回命令文件                                touchApiKey (更新 lastUsed)
 ```
 
 API KEY 特点：

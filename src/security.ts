@@ -7,8 +7,8 @@
  *   3. IP 白名单校验（支持精确 IP 和 CIDR 子网）
  *   4. API KEY 签发、SHA-256 哈希校验（多 key 列表）
  *
- * 认证流程（两层）：
- *   第 0 层 (Express 中间件): 所有 /mcp 请求 → IP 白名单校验 → 通过/拦截
+ * 认证流程（三层）：
+ *   第 0 层 (Express 中间件): 所有 /mcp 请求 → Origin 校验（DNS rebinding 防护）→ IP 白名单校验
  *   第 1 层 (MCP 工具层):    TIA-init → 免 API KEY
  *                            其他工具 → API KEY 校验 → 通过/拒绝
  */
@@ -27,11 +27,12 @@ const SERVER_CONF_FILE = join(PROJECT_ROOT, "server.conf.json");
 // 配置文件读写
 // ═══════════════════════════════════════════════════════════
 
-/** 默认配置 */
+/** 默认配置 — MCP 规范建议绑定 localhost，通过反向代理对外暴露 */
 const DEFAULT_SERVER_CONF: ServerConf = {
   port: 3100,
-  host: "0.0.0.0",
+  host: "127.0.0.1",
   allowedIps: ["127.0.0.1"],
+  allowedOrigins: [],
   xForwardedFor: false,
   apiKeys: [],
 };
@@ -48,6 +49,7 @@ export function loadServerConf(): ServerConf {
       port: parsed.port ?? DEFAULT_SERVER_CONF.port,
       host: parsed.host ?? DEFAULT_SERVER_CONF.host,
       allowedIps: parsed.allowedIps ?? DEFAULT_SERVER_CONF.allowedIps,
+      allowedOrigins: Array.isArray(parsed.allowedOrigins) ? parsed.allowedOrigins : DEFAULT_SERVER_CONF.allowedOrigins,
       xForwardedFor: parsed.xForwardedFor ?? DEFAULT_SERVER_CONF.xForwardedFor,
       contactInfo: parsed.contactInfo,
       apiKeys: Array.isArray(parsed.apiKeys)
@@ -72,7 +74,8 @@ export function ensureServerConf(): ServerConf {
   if (!existsSync(SERVER_CONF_FILE)) {
     saveServerConf(structuredClone(DEFAULT_SERVER_CONF));
     console.error(`[TIA] 已创建 server.conf.json 种子文件`);
-    console.error(`[TIA] 请编辑此文件配置 IP 白名单。API KEY 由 TIA-init 工具自动签发。`);
+    console.error(`[TIA] 请编辑此文件配置 IP 白名单和 Origin 白名单。API KEY 由 TIA-init 工具自动签发。`);
+    console.error(`[TIA] 如果 host 非 127.0.0.1，MCP 规范要求配置 allowedOrigins 以防止 DNS rebinding 攻击。`);
     return structuredClone(DEFAULT_SERVER_CONF);
   }
   return loadServerConf();
@@ -209,6 +212,44 @@ export function checkIpAccess(
     }
   }
 
+  return { ok: true };
+}
+
+/**
+ * 校验 Origin 头，用于 DNS rebinding 防护（MCP 规范 MUST 要求）。
+ *
+ * 行为：
+ *   - host 为 127.0.0.1/::1/localhost → 跳过（本地无 DNS rebinding 风险）
+ *   - allowedOrigins 配置了 → Origin 必须在白名单中，否则 403
+ *   - allowedOrigins 未配置但 host 非 localhost → 跳过 + 打印警告
+ *
+ * @param req  包含请求头信息的对象
+ * @param conf 服务端安全配置
+ */
+export function checkOriginAccess(
+  req: { headers: Record<string, string | string[] | undefined> },
+  conf: ServerConf
+): AuthResult {
+  // localhost 绑定自动跳过 — 外部不可达则无 DNS rebinding 风险
+  const host = conf.host?.toLowerCase();
+  if (host === "127.0.0.1" || host === "::1" || host === "localhost") {
+    return { ok: true };
+  }
+
+  const origin = stringHeader(req.headers, "origin");
+  // 无 Origin 头的请求（非浏览器场景，如 Claude Code CLI）直接放行
+  if (!origin) return { ok: true };
+
+  const allowed = conf.allowedOrigins;
+  if (allowed && allowed.length > 0) {
+    if (!allowed.includes(origin)) {
+      return { ok: false, status: 403, reason: `Origin "${origin}" 不在白名单中` };
+    }
+    return { ok: true };
+  }
+
+  // 非 localhost 但未配置 Origin 白名单 — 警告但放行（兼容已有部署）
+  console.error("[TIA] ⚠️ WARN: host 非 localhost 且未配置 allowedOrigins。建议配置 Origin 白名单以防止 DNS rebinding 攻击。");
   return { ok: true };
 }
 
