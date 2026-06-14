@@ -14,9 +14,9 @@ import { getBaseDir } from "../state.js";
 import { join } from "path";
 import { existsSync } from "fs";
 import { matchEngineFiles, getUnmatchedFiles } from "../engines/registry.js";
-import { runEngineAnalysis, checkAvailability } from "../engines/runner.js";
 import { computeImpactsFromIndex } from "../engines/call-chain-traversal.js";
-import type { CallChainImpact, UnifiedImpactResult } from "../engines/types.js";
+import { createCodebaseMemoryEngine } from "../engines/adapters/codebase-memory.js";
+import type { CallChainImpact, UnifiedImpactResult, PanoramaIndex, EngineConfig, BuiltinAdapterConfig } from "../engines/types.js";
 
 // ═══════════════════════════════════════════════════════
 // 入口
@@ -164,16 +164,16 @@ async function analyzeWithEngines(
     );
 
     try {
-      // 检测引擎可用性
-      const availErr = await checkAvailability(engineConfig);
+      // 检测引擎可用性（内置适配器优先）
+      const availErr = await checkEngineAvailability(engineConfig);
       if (availErr) {
         console.error(`[TIA] ⚠️ 引擎 ${engineConfig.id} 不可用: ${availErr}`);
         participants.push({ engineId: engineConfig.id, engineName: engineConfig.name, status: "degraded", contributedMethods: 0 });
         continue;
       }
 
-      // 运行全量分析
-      const index = await runEngineAnalysis(engineConfig, repoPath, repo.branch, outputPath);
+      // 运行全量分析（内置适配器优先）
+      const index = await executeEngineAnalysis(engineConfig, repoPath, repo.branch, outputPath);
       if (!index) {
         participants.push({ engineId: engineConfig.id, engineName: engineConfig.name, status: "degraded", contributedMethods: 0 });
         continue;
@@ -231,17 +231,13 @@ function enrichWithEngineImpacts(
   const engineModules: typeof base.impactedModules = [];
 
   for (const impact of unified.impacts) {
-    const totalEndpoints =
-      impact.impactedApis.length + impact.impactedMqs.length + impact.impactedJobs.length;
+    const totalEndpoints = impact.impactedApis.length;
 
     if (totalEndpoints === 0) continue;
 
-    // 为每个引擎创建一条聚合模块摘要
-    const allEndpoints = [
-      ...impact.impactedApis.map(e => `${e.endpoint.httpMethod} ${e.endpoint.url} (depth=${Math.min(...e.chains.map(c => c.depth))})`),
-      ...impact.impactedMqs.map(e => `${e.endpoint.queueOrTopic} (depth=${Math.min(...e.chains.map(c => c.depth))})`),
-      ...impact.impactedJobs.map(e => `${e.endpoint.name} (depth=${Math.min(...e.chains.map(c => c.depth))})`),
-    ];
+    const allEndpoints = impact.impactedApis.map(e =>
+      `${e.endpoint.httpMethod} ${e.endpoint.url} (depth=${Math.min(...e.chains.map(c => c.depth))})`
+    );
 
     engineModules.push({
       ruleId: `engine:${impact.engineId}`,
@@ -249,7 +245,7 @@ function enrichWithEngineImpacts(
       riskLevel: totalEndpoints > 10 ? "high" : totalEndpoints > 3 ? "medium" : "low",
       testPaths: allEndpoints.slice(0, 5),
       changedFiles: allChangedFiles.slice(0, 5),
-      confidence: 85, // 引擎分析的默认置信度
+      confidence: 85,
     });
   }
 
@@ -356,4 +352,32 @@ function formatResults(
   }
 
   return ok(lines.join("\n"));
+}
+
+// ═══════════════════════════════════════════════════════
+// 引擎可用性检测与执行（内置适配器优先）
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 检测引擎可用性 — 内置适配器优先。
+ */
+async function checkEngineAvailability(config: EngineConfig): Promise<string | null> {
+  if (config.adapter?.adapterId === "codebase-memory") {
+    const engine = createCodebaseMemoryEngine(config.adapter);
+    return engine.checkAvailability();
+  }
+  return null; // 通用 exec runner 不预检
+}
+
+/**
+ * 执行引擎分析 — 内置适配器优先。
+ */
+async function executeEngineAnalysis(
+  config: EngineConfig, repoPath: string, branch: string, _outputPath: string
+): Promise<PanoramaIndex | null> {
+  if (config.adapter?.adapterId === "codebase-memory") {
+    const engine = createCodebaseMemoryEngine(config.adapter);
+    return engine.runFullAnalysis(repoPath, branch);
+  }
+  return null;
 }

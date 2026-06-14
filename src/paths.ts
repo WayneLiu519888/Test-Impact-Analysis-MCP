@@ -14,14 +14,6 @@ const __dirname = dirname(__filename);
 export const PROJECT_ROOT = join(__dirname, "..");
 
 /**
- * 获取项目根目录。
- * 与 PROJECT_ROOT 等价，供需要函数调用的场景使用。
- */
-export function getProjectRoot(): string {
-  return PROJECT_ROOT;
-}
-
-/**
  * 确保 enterprise/ 目录存在。
  * 在启动时调用，自动创建企业配置目录结构。
  */

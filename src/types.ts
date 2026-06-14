@@ -164,42 +164,17 @@ export interface GitUrlInfo {
   repo: string;
 }
 
-// ═══════════════════════════════════════════════════════════
-// HTTP 服务端 + 安全配置（server.conf.json）
-// ═══════════════════════════════════════════════════════════
-
-/** API KEY 条目（服务端存储哈希，原始 key 仅在签发时返回一次） */
-export interface ApiKeyEntry {
-  /** SHA-256 哈希值，带算法前缀 "sha256:" */
-  hash: string;
-  /** 备注标签（如 "BBB-测试机器"） */
-  label: string;
-  /** 签发时间（ISO 8601） */
-  createdAt: string;
-  /** 签发时的客户端 IP（可选绑定，用于审计追踪） */
-  clientIp?: string;
-  /** 最后使用时间（ISO 8601），自动更新 */
-  lastUsed?: string;
-}
-
-/** server.conf.json — HTTP 服务端 + 安全配置（仅在 MCP_TRANSPORT=http 时生效） */
+/** server.conf.json — HTTP 服务端配置（仅在 MCP_TRANSPORT=http 时生效） */
 export interface ServerConf {
   /** HTTP 监听端口，默认 3100 */
   port: number;
-  /** 绑定地址。MCP 规范建议绑定 127.0.0.1，通过反向代理对外暴露。
-   *  如需局域网共享则改为 0.0.0.0，同时必须配置 Origin 白名单。 */
+  /** 绑定地址。内网部署建议 0.0.0.0，通过 IP 白名单控制访问。 */
   host: string;
   /** IP 白名单。支持精确 IP（192.168.1.100）和 CIDR 子网（192.168.0.0/16）。
-   *  不配置 = 不限制 IP（仅校验 API KEY）。 */
+   *  白名单内的 IP 可直接通过 HTTP 连接 TIA MCP Server。 */
   allowedIps?: string[];
-  /** Origin 白名单，用于 DNS rebinding 防护（MCP 规范 MUST 要求）。
-   *  不配置 = 不限制 Origin。仅当 host 非 127.0.0.1 时生效。
-   *  示例: ["https://claude.ai", "http://192.168.1.100:3100"] */
-  allowedOrigins?: string[];
   /** 是否信任 X-Forwarded-For 头（反向代理场景）。默认 false。 */
   xForwardedFor?: boolean;
-  /** 联系人信息。IP 拦截时提示给客户端，如 "<YOUR-CONTACT-ID>"。 */
+  /** 联系人信息。IP 被拦截时提示给客户端。 */
   contactInfo?: string;
-  /** API KEY 列表。TIA-init 签发的 key 存储于此，服务端仅存哈希。 */
-  apiKeys: ApiKeyEntry[];
 }

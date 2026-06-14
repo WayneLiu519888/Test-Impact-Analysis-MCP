@@ -186,27 +186,10 @@ export function ensureImpactConfig(): ImpactConfigFile {
 export function validateRule(rule: ImpactRule, index: number): string[] {
   const errors: string[] = [];
   const prefix = `rules[${index}]`;
-
-  if (!rule.id || typeof rule.id !== "string") errors.push(`${prefix}.id 缺失或类型错误`);
-  if (!rule.name || typeof rule.name !== "string") errors.push(`${prefix}.name 缺失或类型错误`);
-  if (!Array.isArray(rule.filePatterns) || rule.filePatterns.length === 0) errors.push(`${prefix}.filePatterns 缺失或为空`);
-  if (!Array.isArray(rule.testPaths) || rule.testPaths.length === 0) errors.push(`${prefix}.testPaths 缺失或为空`);
-  if (rule.riskLevel && !["high", "medium", "low"].includes(rule.riskLevel)) errors.push(`${prefix}.riskLevel 必须为 high / medium / low`);
-
-  if (rule.appliesTo) {
-    const at = rule.appliesTo;
-    if (at.names !== undefined && (!Array.isArray(at.names) || at.names.length === 0)) errors.push(`${prefix}.appliesTo.names 必须为非空数组`);
-    if (at.modules !== undefined && (!Array.isArray(at.modules) || at.modules.length === 0)) errors.push(`${prefix}.appliesTo.modules 必须为非空数组`);
-    if (at.repoTypes !== undefined) {
-      if (!Array.isArray(at.repoTypes) || at.repoTypes.length === 0) errors.push(`${prefix}.appliesTo.repoTypes 必须为非空数组`);
-      else for (const rt of at.repoTypes) { if (!["frontend", "backend"].includes(rt)) errors.push(`${prefix}.appliesTo.repoTypes 中 "${rt}" 无效`); }
-    }
-    if (at.platforms !== undefined) {
-      if (!Array.isArray(at.platforms) || at.platforms.length === 0) errors.push(`${prefix}.appliesTo.platforms 必须为非空数组`);
-      else for (const p of at.platforms) { if (!["github", "local", "generic"].includes(p)) errors.push(`${prefix}.appliesTo.platforms 中 "${p}" 无效`); }
-    }
-  }
-
+  if (!rule.id) errors.push(`${prefix}.id 不能为空`);
+  if (!rule.name) errors.push(`${prefix}.name 不能为空`);
+  if (!Array.isArray(rule.filePatterns) || rule.filePatterns.length === 0) errors.push(`${prefix}.filePatterns 不能为空`);
+  if (!Array.isArray(rule.testPaths) || rule.testPaths.length === 0) errors.push(`${prefix}.testPaths 不能为空`);
   return errors;
 }
 

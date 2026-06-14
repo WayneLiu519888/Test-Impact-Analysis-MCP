@@ -7,11 +7,15 @@ enterprise/
 # === 本地敏感配置（防止未放 enterprise/ 直接放根目录） ===
 server.conf.json
 monitors.conf.json
+engines.conf.json
 .mcp.json
 .claude/settings.local.json
 
 # 运行时状态（由程序自动维护，不应提交）
 monitors.json
+
+# 分析引擎本地缓存
+.tia/
 
 # 克隆的第三方仓库
 Repository/

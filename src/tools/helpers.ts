@@ -8,12 +8,6 @@ import { LocalGitAdapter } from "../platforms/local.js";
 import { GenericGitAdapter } from "../platforms/generic.js";
 import type { PlatformAdapter } from "../platforms/types.js";
 import { getMonitorEntries } from "../state.js";
-import {
-  getRequestAuth,
-  loadServerConf,
-  saveServerConf,
-  touchApiKey,
-} from "../security.js";
 
 // ═══════════════════════════════════════════════════════
 // 适配器工厂
@@ -93,31 +87,3 @@ export function resolveRepos(args: Record<string, unknown>): { repos: MonitorEnt
   return { repos, scopeText };
 }
 
-// ═══════════════════════════════════════════════════════
-// lastUsed 节流写入（按 key 独立节流，避免 A 请求阻塞 B 的更新）
-// ═══════════════════════════════════════════════════════
-
-const API_KEY_TOUCH_INTERVAL_MS = 60_000;
-const _keyTouchTimers = new Map<string, number>();
-
-export function throttleTouchApiKey(entry: import("../types.js").ApiKeyEntry): void {
-  const now = Date.now();
-  const last = _keyTouchTimers.get(entry.hash) ?? 0;
-  if (now - last < API_KEY_TOUCH_INTERVAL_MS) return;
-  _keyTouchTimers.set(entry.hash, now);
-
-  try {
-    const conf = loadServerConf();
-    touchApiKey(conf.apiKeys, entry);
-    saveServerConf(conf);
-  } catch (err: any) {
-    console.error(`[TIA] ⚠️ 更新 API KEY lastUsed 失败: ${err.message}`);
-  }
-
-  // 定期清理过期的计时器条目，防止 Map 无限增长
-  if (_keyTouchTimers.size > 100) {
-    for (const [hash, ts] of _keyTouchTimers) {
-      if (now - ts > API_KEY_TOUCH_INTERVAL_MS * 2) _keyTouchTimers.delete(hash);
-    }
-  }
-}

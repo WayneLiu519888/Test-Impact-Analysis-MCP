@@ -1,4 +1,36 @@
 {
-  "_说明": "多分析引擎配置文件。暂无内置引擎，此文件为占位配置。",
-  "engines": []
+  "_说明": "多分析引擎配置文件。内置引擎（cbm-mcp）使用专用适配器自动处理 CLI JSON 翻译。通用引擎走 exec/mcp/http runner。",
+
+  "engines": [
+    {
+      "id": "cbm-mcp",
+      "name": "Codebase Memory MCP",
+      "enabled": false,
+      "description": "基于 tree-sitter 的 158 语言代码智能引擎，方法级调用链追踪，零运行时依赖（36MB 单一静态二进制）。安装: irm https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/scripts/setup-windows.ps1 | iex",
+      "fileExtensions": [".java", ".kt", ".kts", ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs", ".cs", ".rb", ".php"],
+      "confidenceWeight": 90,
+      "capabilities": {
+        "fileExtensions": [".java", ".kt", ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs", ".cs", ".rb", ".php"],
+        "modes": ["full"],
+        "granularity": "method",
+        "frameworkAwareness": false
+      },
+      "runner": {
+        "type": "exec",
+        "command": "codebase-memory-mcp",
+        "args": ["cli", "index_repository", "{repoPath}"],
+        "timeoutMs": 600000
+      },
+      "adapter": {
+        "type": "builtin",
+        "adapterId": "codebase-memory",
+        "binaryPath": "D:/0_WayneArchiveFiles/MCP-Servers/codebase-memory-mcp/codebase-memory-mcp.exe",
+        "timeoutMs": 600000,
+        "indexOptions": {
+          "forceReindex": false
+        },
+        "callTraceDepth": 5
+      }
+    }
+  ]
 }

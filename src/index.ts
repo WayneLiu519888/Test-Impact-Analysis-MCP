@@ -23,10 +23,10 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { IncomingMessage, ServerResponse } from "http";
-import { handleToolCall, setTransportMode, TRANSPORT, getTransportMode, getFilteredSchemas } from "./tools/index.js";
+import { handleToolCall, setTransportMode, TRANSPORT, getTransportMode, TOOL_SCHEMAS } from "./tools/index.js";
 import { ensureEnterpriseDir } from "./paths.js";
 import { ensureConfigFile, validateConfig, listRepoConfigs } from "./state.js";
-import { ensureServerConf, checkIpAccess, checkOriginAccess, getClientIp, verifyApiKey, runWithRequestAuth, stringHeader, validateAgentType } from "./security.js";
+import { ensureServerConf, checkIpAccess, getClientIp, stringHeader } from "./security.js";
 import { ensureImpactConfig } from "./impact-analysis/state.js";
 import { ensureEngineConfig } from "./engines/registry.js";
 
@@ -74,7 +74,7 @@ const server = new Server(
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: getFilteredSchemas(getTransportMode()),
+  tools: TOOL_SCHEMAS,
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
@@ -121,51 +121,19 @@ async function startHttpMode() {
 
   const app = createMcpExpressApp({
     host: serverConf.host,
-    // 当 host 非 localhost 时显式传入 allowedHosts，启用 SDK 内建 DNS rebinding 防护
-    ...(serverConf.host !== "127.0.0.1" && serverConf.host !== "::1" && serverConf.host !== "localhost"
-      ? { allowedHosts: serverConf.allowedOrigins && serverConf.allowedOrigins.length > 0 ? serverConf.allowedOrigins : undefined }
-      : {}),
   });
 
-  // ── 第 0 层安全：所有 /mcp 请求 → Origin → IP 白名单 → API KEY 预校验 ──
-  // Origin 不通过（DNS rebinding）→ 403
-  // IP 不通过 → 403 立即拦截
-  // API KEY 校验结果存入 RequestAuth，由 MCP 工具层决定是否放行
-  //   - TIA-init → 免 API KEY（客户端首次引导）
-  //   - 其他工具 → 必须持有效 API KEY
+  // ── IP 白名单校验（所有 /mcp 请求必经）──
   app.use("/mcp", (req: ExpressReq, res: ExpressRes, next: () => void) => {
-    // Origin — DNS rebinding 防护（MCP 规范 MUST）
-    const originResult = checkOriginAccess(req, serverConf);
-    if (!originResult.ok) {
-      res.status(originResult.status ?? 403).json({
-        error: "Forbidden",
-        message: originResult.reason ?? "Origin 不允许",
-      });
-      return;
-    }
-
-    // IP 白名单
     const ipResult = checkIpAccess(req, serverConf);
     if (!ipResult.ok) {
       res.status(ipResult.status ?? 403).json({
         error: "Forbidden",
-        message: ipResult.reason ?? "认证失败",
+        message: ipResult.reason ?? "IP 不在白名单中",
       });
       return;
     }
-
-    // API KEY 预校验（工具层根据工具名决定是否放行）
-    const clientIp = getClientIp(
-      { headers: req.headers, socket: req.socket } as IncomingMessage,
-      serverConf.xForwardedFor ?? false
-    );
-    const providedKey = stringHeader(req.headers, "x-api-key");
-    const apiKeyEntry = providedKey
-      ? verifyApiKey(providedKey, serverConf.apiKeys)
-      : null;
-    const agentType = stringHeader(req.headers, "x-agent-type");
-    const auth = { clientIp, apiKeyEntry, agentType: validateAgentType(agentType) };
-    runWithRequestAuth(auth, () => next());
+    next();
   });
 
   // ── Streamable HTTP Transport ──
@@ -186,26 +154,16 @@ async function startHttpMode() {
   });
 
   app.listen(serverConf.port, () => {
-    const keyCount = serverConf.apiKeys?.length ?? 0;
-    const authStatus = keyCount > 0
-      ? `${keyCount} 个 API KEY`
-      : "⚠️ 无 API KEY（客户端需执行 TIA-init）";
     const ipStatus =
       serverConf.allowedIps && serverConf.allowedIps.length > 0
         ? `${serverConf.allowedIps.length} 个 IP`
         : "⚠️ 未配置 IP 白名单";
-    const originStatus =
-      serverConf.host === "127.0.0.1" || serverConf.host === "::1" || serverConf.host === "localhost"
-        ? "跳过（localhost）"
-        : serverConf.allowedOrigins && serverConf.allowedOrigins.length > 0
-          ? `${serverConf.allowedOrigins.length} 个 Origin`
-          : "⚠️ 未配置 Origin 白名单";
 
     console.error(`[TIA] v1.0.0 [http] 已就绪`);
     console.error(`[TIA] 地址:    http://${serverConf.host}:${serverConf.port}`);
     console.error(`[TIA] MCP:     http://${serverConf.host}:${serverConf.port}/mcp`);
     console.error(`[TIA] Health:  http://${serverConf.host}:${serverConf.port}/health`);
-    console.error(`[TIA] Origin:  ${originStatus}  |  IP: ${ipStatus}  |  KEY: ${authStatus}`);
+    console.error(`[TIA] IP:      ${ipStatus}`);
   });
 }
 

@@ -279,31 +279,8 @@ export function analyzeImpact(
   };
 }
 
-/**
- * 去重：同一个 (testPath, ruleId) 被多次命中时，保留置信度最高的。
- * 不同 changedFile 的匹配会被合并，不丢失触发文件信息。
- *
- * 注意：此函数当前未被 analyzeImpact() 调用——
- * 去重逻辑已在 aggregateMatches() 的 moduleMap 中处理。
- * 保留以备将来需要独立去重时使用。
- */
-function dedupByTestPath(matches: ImpactMatch[]): ImpactMatch[] {
-  const best = new Map<string, ImpactMatch>();
-  for (const m of matches) {
-    const key = `${m.testPath}::${m.ruleId}`;
-    const existing = best.get(key);
-    if (!existing || m.confidence > existing.confidence) {
-      best.set(key, { ...m });
-    } else if (m.confidence === existing.confidence && m.changedFile !== existing.changedFile) {
-      // 同置信度但不同触发文件 → 保留第一个，不丢失信息
-      // (changedFiles 聚合在 aggregateMatches 中处理)
-    }
-  }
-  return Array.from(best.values());
-}
-
 // ═══════════════════════════════════════════════════════
 // 导出匹配工具（供测试用）
 // ═══════════════════════════════════════════════════════
 
-export { globToRegex, matchFile, autoInfer, calcConfidence, dedupByTestPath };
+export { globToRegex, matchFile, autoInfer, calcConfidence };
