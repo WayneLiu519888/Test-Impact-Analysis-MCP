@@ -207,7 +207,6 @@ Test-Impact-Analysis-mcp/
 | Phase 3 | Test Recommendation — 智能测试推荐 | ✅ |
 | Phase 4 | Risk Assessment — 变更风险量化 | ✅ |
 | Phase 5a | Analyzer Registry — MCP 编织层 | ✅ |
-| Phase 5b | JACG 调用链分析（双模引擎 + 融合引擎） | 🔜 |
 | Phase 5c | SQL / Perf / Python / Go 分析器横向扩展 | 💡 |
 | Phase 6 | 信息安全分层重构 — enterprise/ 隔离 | ✅ |
 

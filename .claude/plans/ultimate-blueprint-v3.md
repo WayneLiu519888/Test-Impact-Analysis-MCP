@@ -1,10 +1,13 @@
 # TIA 终极蓝图 v3 — 全景索引 + 逆向调用链 + 场景级精准测试
 
+> ⚠️ **java-callgraph / JACG 已于 2026-06-14 废弃。文中所有 JACG 相关内容仅作历史参考，不再计划实施。**
+
 **设计日期**: 2026-06-14 | **最后修订**: 2026-06-15  
 **核心决策**: 
-- 分析引擎通过子进程（`execFile`）直接调用，不依赖外部 MCP Server
-- 候选方案：java-all-call-graph 核心库（通过 CLI jar 调用）— 调研中
-- 全量预生成全景索引 → 增量查索引 BFS → 精准影响范围
+- **多分析引擎可插拔框架** — `AnalysisEngine` 抽象接口 + 聚合模块，见第十四章
+<!-- - **分层组合策略** — 快速路径（dependency-cruiser/jdeps）+ 精确路径（java-callgraph/TypeScript-Call-Graph），见第十三章 -->
+- 全量预生成全景索引 → 增量查索引 BFS → 精准影响范围 — 核心链路保留
+- 分析引擎选型附录见第十二章（历史方案记录）
 
 ---
 
@@ -82,33 +85,27 @@
 │  ┌───────────┐  ┌───────────┐  ┌──────────────────────────────┐ │
 │  │repo_monitor│  │repo_clone │  │    impact_analysis (v3)      │ │
 │  │  (Phase1)  │  │  (Phase1) │  │                              │ │
-│  └───────────┘  └───────────┘  │  ┌──────────────────────────┐ │ │
-│                                │  │  分析器注册表              │ │ │
-│  ┌──────────────────────────┐  │  │  analyzers.conf.json      │ │ │
-│  │  test_recommendation     │  │  │  ├─ jacg     (enabled)   │ │ │
-│  │  risk_assessment         │  │  │  ├─ sql-analyzer (未来)  │ │ │
-│  │  (Phase 3-4)             │  │  │  └─ codeql     (未来)    │ │ │
-│  └──────────────────────────┘  │  └──────────┬───────────────┘ │ │
-│                                │              │                  │ │
-│                                │  ┌──────────▼───────────────┐ │ │
-│                                │  │  融合引擎 (Merge Engine)  │ │ │
-│                                │  │  ├─ 并行调用 N 个分析器   │ │ │
-│                                │  │  ├─ 去重 (按方法FQN)     │ │ │
-│                                │  │  ├─ 合并 (同名方法调链)  │ │ │
-│                                │  │  ├─ 加权 (分析器可信度)  │ │ │
-│                                │  │  └─ 统一报告             │ │ │
-│                                │  └──────────────────────────┘ │ │
-│                                │              │                  │ │
-│                                │  降级: glob 文件级匹配           │ │
-│                                │   (全部不可用时兜底)             │ │
-│                                └────────────────────────────────┘ │
+│  └───────────┘  └───────────┘  │  模式1: full (🔖待定)        │ │
+│                                │    全量预生成全景索引          │ │
+│  ┌──────────────────────────┐  │    → .tia/main/panorama-*.gz │ │
+│  │  test_recommendation     │  │                              │ │
+│  │  risk_assessment         │  │  模式2: incremental (✅已实现)│ │
+│  │  (Phase 3-4)             │  │    查全景索引 → BFS         │ │
+│  └──────────────────────────┘  │    → API/MQ/Job 影响范围     │ │
+│                                │                              │ │
+│  ┌──────────────────────────┐  │  降级: glob 文件级匹配        │ │
+│  │  call-chain/             │  │    (索引不存在时兜底)         │ │
+│  │  ├─ 逆向 BFS (✅)        │──┤                              │ │
+│  │  └─ PanoramaIndex (✅)   │  │                              │ │
+│  └──────────────────────────┘  └──────────────────────────────┘ │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │  分析引擎 🔖 待定（见第十二章附录）                            ││
+│  │  ├─ JACG MCP Server — ❌ 已毙                                ││
+│  │  ├─ JACG 核心库子进程 — ❌ 已毙                               ││
+│  │  └─ JACG 离线 JSON 生成器 — 🔖 待采用（太重暂搁）             ││
+│  └──────────────────────────────────────────────────────────────┘│
 └───────────────────────────────────────────────────────────────────┘
-            │ MCP                     │ MCP                │ MCP
-┌───────────▼──────────┐  ┌──────────▼─────────┐  ┌───────▼──────────┐
-│  JACG MCP Server      │  │  SQL Analyzer MCP   │  │  CodeQL MCP     │
-│  (Java 字节码调用图)  │  │  (SQL 变更分析)     │  │  (安全+数据流)   │
-│  ✅ 当前已配置         │  │  🔜 未来            │  │  🔜 未来         │
-└──────────────────────┘  └────────────────────┘  └──────────────────┘
 ```
 
 ---
@@ -878,7 +875,9 @@ Claude Code Host:
 > **当前状态**: Phase 5b **未开始**。
 
 ```
-🔜 Week 1-2: Phase 5b — JACG 对接 + 全景索引 + 融合引擎骨架 (未开始)
+🛑 Week 1-2: Phase 5b — 分析引擎集成 (暂停 — 引擎选型待定)
+   已评估: JACG MCP Server (❌)、核心库子进程 (❌)、离线 JSON 生成器 (🔖待采用)
+   当前可推进: call-chain/ (✅) + panorama-state/ (✅) 已就绪，等分析引擎填充
   ├─ 安装并运行 java-all-call-graph-server
   ├─ 确认 JACG MCP 工具签名（ListTools → 工具名+参数）
   ├─ 恢复 src/analyzer-registry/ 目录
@@ -888,22 +887,16 @@ Claude Code Host:
   ├─ 新增 src/call-chain/types.ts + analyzer.ts
   │   └─ reverseImpactFromIndex() — 索引驱动 BFS
   ├─ 新增 src/impact-analysis/merge-engine.ts ★ 核心
-  │   └─ mergeAnalyzerResults() — 去重+合并+加权仲裁
-  ├─ 修改 src/impact-analysis/handler.ts
-  │   └─ 多分析器并行路由: full(遍历N个) / incremental(并行N个→融合) / rebuild
-  ├─ 修改 src/tools/schemas.ts
-  │   └─ impact_analysis Schema 升级双模
-  └─ 验证: 对真实 Java 项目 full → incremental → 调用链准确性
-
-🔜 Week 3: Phase 3-4 — 下游消费者升级 (未开始)
+🔜 Week X: Phase 3-4 — 下游消费者升级 (等引擎就绪后)
   ├─ test_recommendation: 输入从文件级升级为调用链级
-  │   推荐分 = 调用链深度 × 变更类型 × 业务关键度 × 多源验证加成
-  └─ risk_assessment: 风险评分引入调用链深度 + 分析器数量因子
+  └─ risk_assessment: 风险评分引入调用链深度因子
 
-🔜 Week 4: 业务场景桥接 + 端到端验证 (未开始)
+🔜 Week X: 业务场景桥接 + 端到端验证 (等引擎就绪后)
   ├─ src/business-scenario/*
   └─ 全链路: clone → full → monitor → incremental → 场景映射 → 测试推荐
 ```
+
+> ⚠️ 以上路线图依赖分析引擎就绪。当前引擎待定，见第十二章。
 
 ---
 
@@ -1020,7 +1013,109 @@ Claude Code Host:
 
 ---
 
-## 十一、信息安全分层架构 ✅ 已实现
+## 十二、分析引擎选型附录
+
+> **本章记录已评估过的分析引擎方案，供未来重新决策时参考。**
+
+### 12.1 方案 A：MCP Server 编织（java-all-call-graph-server）
+
+| 维度 | 内容 |
+|------|------|
+| **标签** | ❌ 已毙 |
+| **思路** | 通过 MCP 协议调用 `java-all-call-graph-server`，TIA 作为编织层委托给下游分析器 |
+| **毙掉原因** | JACG MCP Server 不靠谱——启动复杂（JDK + Gradle 构建 + Spring Boot 服务）、/health 端点不存在导致可用性检测误判、实际运行后频繁连不上。零代码启动的 MCP 理想没有实现 |
+| **参考文档** | 已删除的 `docs/adr/0001-analyzer-integration-pattern.md`、`phase5a-jacg-integration.md` |
+
+---
+
+### 12.2 方案 B：子进程调用核心库（java-all-call-graph）
+
+| 维度 | 内容 |
+|------|------|
+| **标签** | ❌ 已毙 |
+| **思路** | 通过 `execFile("java", ["-jar", "jacg.jar"])` 子进程调用 JACG 核心库 |
+| **毙掉原因** | JACG 设计目标是"把 Java 代码结构化到数据库"，而非轻量 CLI。核心问题：1) 需要编译后的 jar/class 作为输入（TIA 只能拿到源码）；2) 输出写 MySQL/H2 数据库，非 JSON；3) 非标准 CLI 接口，靠 `.bat/.sh` 脚本驱动 |
+| **调研日期** | 2026-06-15 |
+
+---
+
+### 12.3 方案 C：离线 JSON 生成器 + H2 持久化  🔖 待采用
+
+| 维度 | 内容 |
+|------|------|
+| **标签** | 🔖 **待采用**（方案可靠但实施太重，暂时搁置） |
+| **设计日期** | 2026-06-15，由 `ecc:code-architect` 完成架构设计 |
+| **核心思路** | JACG 负责离线全量分析（H2 → 150 行 Java 桥接层 → stdout JSON），TIA 负责在线消费（加载 `.tia/main/panorama-jacg.json.gz` → BFS → 输出） |
+
+#### 架构全貌
+
+```
+离线（一次性全量）                                  在线（每次MR）
+┌──────────────────────┐                    ┌──────────────────────────┐
+│  JACG 全量分析        │                    │  TIA 消费全景索引         │
+│  java -jar jacg.jar  │                    │                          │
+│       ↓              │                    │  loadPanoramaIndex()     │
+│  H2 数据库文件        │                    │       ↓                  │
+│       ↓              │                    │  逆向 BFS               │
+│  JacgExporter.java   │     stdout JSON    │       ↓                  │
+│  (150行 JDBC→JSON)   │ ──────────────────→│  受影响 API/MQ/Job       │
+│                      │   落盘 .tia/main/   │                          │
+└──────────────────────┘                    └──────────────────────────┘
+```
+
+#### 7 项核心决策
+
+| # | 决策 | 理由 |
+|:--:|------|------|
+| 1 | **薄 Java 桥接层** `JacgExporter.java`，而非 Node.js 直读 H2 | H2 是 Java 原生二进制格式，无可靠 Node.js 驱动 |
+| 2 | **扩展 impact_analysis**，不新增 MCP 工具 | 遵循克制原则 |
+| 3 | **保留现有 glob 匹配**作降级兜底 | 全景索引不存在时自动 fallback |
+| 4 | JACG 输入需要编译产物（`mvn compile`） | ASM 字节码分析，TIA 需先触发编译 |
+| 5 | **新增 `jacg.conf.json`**，不污染 `monitors.conf.json` | 配置分离 |
+| 6 | 从 H2 的 `method_call` + `method_call_info` 表 JOIN 出调用图 | JACG 核心输出表 |
+| 7 | **Gzip JSON 存储** `.json.gz` | 10 万方法 ≈ 100MB 原始 JSON，压缩 5-10x |
+
+#### 新增文件清单
+
+| 优先级 | 文件 | 用途 |
+|:--:|------|------|
+| P0 | `src/call-chain/types.ts` | PanoramaIndex 类型（✅ 已实现） |
+| P0 | `src/call-chain/bfs-analyzer.ts` | `reverseImpactFromIndex()`（✅ 已实现） |
+| P0 | `src/impact-analysis/panorama-state.ts` | `.tia/` 下索引读写（✅ 已实现，需加 gzip） |
+| P1 | `src/jacg/types.ts` | JacgConfig 类型 |
+| P1 | `src/jacg/config.ts` | `jacg.conf.json` 加载/种子 |
+| P1 | `src/jacg/runner.ts` | 子进程编排：编译→JACG→导出→落盘 |
+| P1 | `src/jacg/verifier.ts` | JDK/JACG jar 环境预检 |
+| P1 | `jacg-bridge/JacgExporter.java` | **150 行 Java 桥接**：H2 JDBC→JSON stdout |
+| P1 | `examples/jacg.conf.example.json` | 配置模板 |
+| P2 | `jacg-bridge/compile.bat` / `.sh` | 桥接层编译 |
+| P2 | `src/tests/call-chain.test.ts` | BFS 单元测试 |
+
+#### 修改文件清单
+
+| 文件 | 变更 |
+|------|------|
+| `src/tools/schemas.ts` | `impact_analysis` 新增 `action` 参数 (full/incremental/rebuild) |
+| `src/impact-analysis/handler.ts` | action 分发：full→JACG→落盘 / incremental→BFS / glob 降级 |
+| `src/index.ts` | 启动时 `ensureJacgConfig()` |
+
+#### 搁置原因
+
+| 原因 | 说明 |
+|------|------|
+| **引入 Java 栈依赖** | JDK + JACG jar + 桥接层编译，TIA 从纯 TS 项目变成 TS+Java 混合部署 |
+| **全量分析前置成本** | 每次新仓库都要跑一遍 `mvn compile` + JACG 全量分析（大仓库 10-30 分钟） |
+| **桥接层维护** | 150 行 Java 虽小，但跨语言调试、跨平台编译、JACG 版本升级都需要多维护一份代码 |
+| **用户环境要求** | 需要本机同时有 Node.js + JDK + Maven/Gradle，门槛偏高 |
+
+#### 恢复条件
+
+满足以下条件之一即可重启此方案：
+- TIA 已稳定，有真实用户愿意接受 30 分钟全量分析的前置代价
+- java-all-call-graph 官方提供了原生 JSON 输出（不再需要桥接层）
+- 有预算在 Server 端 CI 环境预先全量分析，客户端只消费产出
+
+---
 
 **设计日期**: 2026-06-14 | **实施日期**: 2026-06-14  
 **背景**: 项目开源在 GitHub，开发者在家庭办公网络直接推送代码。未来可能在企业内部网络继续开发，企业有严格的信息安全制度——所有企业相关配置（代码仓地址、分支信息、业务模块名、项目文档等）一律不得传出内部网络。  
@@ -1486,3 +1581,444 @@ jobs:
 | **双环境配置同步**：家和公司之间配置文件需手动同步 | 🟢 低 | 维护两套配置文件（`monitors.conf.home.json` / `monitors.conf.company.json`）；未来可考虑加密备份方案 |
 | **开源用户首次体验**：空白 `enterprise/` 目录让新手困惑 | 🟢 低 | `resolveConfigPath()` 自动从 `examples/` 复制模板，启动时打印清晰的编辑指引 |
 | **开发者绕过 pre-commit**：`git commit --no-verify` | 🟡 中 | .gitignore 为最后防线（enterprise/ 无论如何不会被 add）；CI 自查脚本做兜底扫描 |
+
+---
+
+## 十三、分析引擎候选工具评估
+
+> **评估日期**: 2026-06-15 | **数据来源**: GitHub API + npm Registry + WebSearch  
+> **评估 Agent**: Explore Agent
+
+### 13.1 推荐组合策略
+
+TIA 需要覆盖 **Java 后端**（方法级调用链 + 框架注解感知）和 **JS/TS 前端**（方法级调用链）。采用**分层组合**：
+
+```
+第一层（快速路径 — 秒级）:
+  TS/JS → dependency-cruiser (模块级 JSON, npx 即用)
+  Java  → jdeps (类级, JDK 内置零安装)
+  
+第二层（精确路径 — 分钟级）:
+  TS/JS → TypeScript-Call-Graph (函数级调用图)
+  Java  → java-callgraph (方法级调用图, java -jar)
+         + 自建注解扫描器 (抽取 Spring 端点)
+
+第三层（自研兜底 — 按需）:
+  Java: ASM bytecode visitor + ts-morph AST traversal
+```
+
+### 13.2 详细评估（14 个候选工具）
+
+#### 🟢 强烈推荐
+
+| # | 工具 | 类型 | CLI | JSON | 调用链 | Stars | 一句话 |
+|:--:|------|------|:--:|:--:|:--:|:--:|------|
+| 1 | **java-callgraph** (gousiosg) | Java | ✅ `java -jar` | ⚠️ 规整文本 | 方法级 | 845 | 零依赖 standalone JAR，完美适配 execFile |
+| 2 | **dependency-cruiser** | JS/TS | ✅ `npx depcruise` | ✅ 原生JSON | 文件/模块级 | 6.8k | 活跃维护 (2026.05)，社区认可度最高 |
+| 3 | **TypeScript-Call-Graph** | TS | ✅ `tcg src/` | ❌ DOT/HTML | 函数级 | 286 | 唯一专注 TS 函数级调用图的 CLI |
+| 4 | **code2flow** | 跨语言 | ✅ `code2flow` | ❌ DOT | 函数级 | 4.6k | 支持上下游深度控制 |
+
+#### 🟡 可考虑
+
+| # | 工具 | 类型 | CLI | 调用链 | Stars | 亮点/短板 |
+|:--:|------|------|:--:|:--:|:--:|------|
+| 5 | **custom-bytecode-analyzer** | Java | ✅ | 方法级 | 74 | JSON规则可匹配注解；输出DOT非JSON |
+| 6 | **Soot/SootUp** | Java | ⚠️ fat jar | 方法级(CHA/RTA/SPARK) | 3.1k/795 | 学术级精度；需自写分析插件 |
+| 7 | **ENRE-ts** | TS | ✅ | 实体级 | 15 | 原生JSON；社区极小 |
+| 8 | **jdeps** | Java(JDK内置) | ✅ | 类级 | N/A | 零安装；仅类级不够精细 |
+| 9 | **madge** | JS/TS | ✅ | 模块级 | 10.1k | npm即用；不到方法级 |
+
+#### 🔴 不推荐（太重/不匹配/不可靠）
+
+| # | 工具 | 毙掉原因 |
+|:--:|------|---------|
+| 10 | WALA | IBM 纯库形态，无 CLI，无 JSON 输出 |
+| 11 | SPOON | 纯 Java API，无 CLI，无内置调用图生成 |
+| 12 | Doop | 学术工具，依赖 Datalog 引擎 |
+| 13 | fta | 代码复杂度分析，非调用图 |
+| 14 | static-analysis-part1 | 0 stars 学生项目 |
+
+### 13.3 第一优先级集成路径
+
+```
+Phase 2a-1: dependency-cruiser (TS项目快速路径)
+  → npx depcruise src --output-type json
+  → 解析 JSON → PanoramaIndex (文件级)
+  → 时间: 1天
+
+Phase 2a-2: java-callgraph (Java项目精确路径)
+  → git clone https://github.com/gousiosg/java-callgraph
+  → mvn package -DskipTests → javacg-static.jar
+  → java -jar javacg-static.jar target/classes/
+  → 解析文本输出 → PanoramaIndex (方法级)
+  → 时间: 2天
+```
+
+---
+
+## 十四、多分析引擎可插拔框架
+
+> **设计日期**: 2026-06-15 | **设计 Agent**: ecc:architect  
+> **核心命题**: TIA 架构必须支持未来配置多个分析引擎并行工作 — 去重、汇总、仲裁、统一报告
+
+### 14.1 三层架构
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  handler 层: 只管"串"和"降"                               │
+│  analyzeWithEngines() — 串联引擎 + 降级到 glob            │
+└────────────────────────┬─────────────────────────────────┘
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  聚合层 (Aggregation): 只管"合"和"判"                    │
+│  ├─ 去重 (按方法FQN)        ├─ 冲突仲裁                    │
+│  ├─ 调用链合并 (A→B + A→C)  ├─ 差异补全 (标注来源)        │
+│  └─ 置信度加权 (weight/50)  └─ 降级融合                    │
+└────────────────────────┬─────────────────────────────────┘
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  引擎抽象层 (Engines): 只管"跑"和"收"                    │
+│  AnalysisEngine 接口 → exec/mcp/http 三种 Runner          │
+│  每个引擎输出 → PanoramaIndex → .tia/{branch}/panorama-{id}.json │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 14.2 AnalysisEngine 接口
+
+```typescript
+// src/engines/types.ts
+
+export interface AnalysisEngine {
+  readonly id: string;
+  readonly name: string;
+  /** 声明支持的能力 */
+  readonly capabilities: EngineCapabilities;
+  /** 可信度权重 0-100，用于多引擎加权仲裁 */
+  readonly confidenceWeight: number;
+
+  /** 全量分析：生成完整 PanoramaIndex */
+  runFullAnalysis(repoPath: string, branch: string): Promise<PanoramaIndex>;
+
+  /** 增量分析：基于已有索引更新（可选） */
+  runIncrementalAnalysis?(
+    repoPath: string, branch: string, baseIndex: PanoramaIndex,
+    changedFiles: string[]
+  ): Promise<PanoramaIndex>;
+
+  /** 可用性检测（惰性调用） */
+  checkAvailability(): Promise<string | null>;
+}
+
+export interface EngineCapabilities {
+  /** 支持的文件扩展名 */
+  fileExtensions: string[];
+  /** 支持的分析模式 */
+  modes: ("full" | "incremental")[];
+  /** 分析粒度 */
+  granularity: "method" | "class" | "file" | "module";
+  /** 是否具备框架感知（Spring 注解等） */
+  frameworkAwareness: boolean;
+}
+
+export interface RunnerConfig {
+  type: "exec" | "mcp" | "http";
+  command?: string;           // exec: 启动命令
+  args?: string[];            // exec: 参数，支持 {repoPath} 等占位符
+  url?: string;               // http: MCP/HTTP 端点
+  timeoutMs: number;          // 默认 600000 (10min)
+}
+```
+
+### 14.3 聚合算法
+
+```typescript
+// src/aggregation/aggregator.ts
+
+interface AggregationInput {
+  engineResults: EngineAnalysisResult[];
+  changedFiles: string[];
+  allowDegraded: boolean;
+}
+
+interface AggregationOutput {
+  unified: UnifiedImpactResult;
+  stats: AggregationStats;
+}
+
+// 六步流水线:
+// 1. mergeCallChains() — A→B→C + A→D→C = A→{B,D}→C
+// 2. dedupByFqn()        — 同FQN保留最高置信度，合并sources[]
+// 3. weightConfidence()   — 归一化 = raw × (weight/50)，交叉验证+10
+// 4. arbitrateConflicts() — 取多数票 / 投信任票
+// 5. diffComplete()       — 标注独有发现来源
+// 6. fallbackToGlob()     — uncovered文件 → analyzer.ts glob匹配
+```
+
+### 14.4 配置文件（engines.conf.json）
+
+```jsonc
+{
+  "engines": [
+    {
+      "id": "depcruiser",
+      "name": "依赖分析 (TS/JS)",
+      "enabled": true,
+      "fileExtensions": [".ts", ".tsx", ".js", ".jsx"],
+      "confidenceWeight": 65,
+      "capabilities": { "modes": ["full"], "granularity": "file" },
+      "runner": {
+        "type": "exec",
+        "command": "npx",
+        "args": ["depcruise", "{repoPath}", "--output-type", "json"],
+        "timeoutMs": 120000
+      }
+    },
+    {
+      "id": "java-callgraph",
+      "name": "Java 方法调用图",
+      "enabled": false,
+      "fileExtensions": [".java"],
+      "confidenceWeight": 85,
+      "capabilities": { "modes": ["full"], "granularity": "method" },
+      "runner": {
+        "type": "exec",
+        "command": "java",
+        "args": ["-jar", "/path/to/javacg-static.jar", "{repoPath}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "tcg",
+      "name": "TypeScript 函数调用图",
+      "enabled": false,
+      "fileExtensions": [".ts", ".tsx"],
+      "confidenceWeight": 80,
+      "capabilities": { "modes": ["full"], "granularity": "function" },
+      "runner": {
+        "type": "exec",
+        "command": "npx",
+        "args": ["tcg", "{repoPath}"],
+        "timeoutMs": 300000
+      }
+    }
+  ]
+}
+```
+
+### 14.5 文件清单（实际产出 ~1080 行，Phase 2a + 2d）
+
+| 新建 | 文件 | 行数 | 状态 | 说明 |
+|:--:|------|:--:|:--:|------|
+| ✅ | `src/engines/types.ts` | ~220 | 已创建 | AnalysisEngine 接口 + PanoramaIndex + CallChainImpact + EngineConfig + UnifiedImpactResult |
+| ✅ | `src/engines/registry.ts` | ~115 | 已创建 | 引擎注册表：配置读写 + 扩展名匹配 + 惰性缓存 |
+| ✅ | `src/engines/runner.ts` | ~195 | 已创建 | 引擎运行器：runEngineAnalysis() 调度 (内置/通用) + exec/mcp/http + checkAvailability() |
+| ✅ | `src/engines/call-chain-traversal.ts` | ~117 | 已创建 | 逆向 BFS：computeImpactsFromIndex() |
+| ✅ | `src/engines/adapters/java-callgraph.ts` | ~320 | 已创建 | java-callgraph 专用适配器：编译→运行→解析→PanoramaIndex |
+| ✅ | `scripts/setup-java-callgraph.sh` | ~90 | 已创建 | java-callgraph 自动安装脚本 (克隆+编译+部署) |
+| ✅ | `examples/engines.conf.example.json` | ~35 | 已创建 | 引擎配置模板（预置 java-callgraph 示例） |
+| ✅ | `lib/java-callgraph/.gitkeep` | 1 | 已创建 | JAR 存放位置标注 |
+
+| 修改 | 文件 | 行数 | 状态 | 说明 |
+|:--:|------|:--:|:--:|------|
+| ✅ | `src/impact-analysis/handler.ts` | +120 | 已完成 | analyzeWithEngines() + enrichWithEngineImpacts() + locateRepoClone() |
+| ✅ | `src/index.ts` | +2 | 已完成 | ensureEngineConfig() 启动调用 |
+
+> **选做**: `src/aggregation/types.ts` + `src/aggregation/aggregator.ts` — 多引擎聚合模块（Phase 2b，待引入第二个引擎时实现）
+> **不动**: analyzer.ts (glob 兜底)、platforms/、tools/
+
+### 14.6 实施序列
+
+```
+Phase 2a (引擎抽象层, ✅ 2026-06-14 完成):
+  ✅ Step 1: src/engines/types.ts            — 接口+类型 (220行)
+  ✅ Step 2: src/engines/registry.ts         — 注册表 (115行)
+  ✅ Step 3: src/engines/runner.ts           — 子进程运行器 + 适配器调度 (195行)
+  ✅ Step 4: src/engines/call-chain-traversal.ts — BFS 逆向遍历 (117行)
+  ✅ Step 5: examples/engines.conf.example.json
+  ✅ Step 6: src/index.ts                    — ensureEngineConfig() 启动注册
+
+Phase 2b (聚合模块, 🔜 待引入第二个引擎):
+  Step 1: src/aggregation/types.ts
+  Step 2: src/aggregation/aggregator.ts      — 核心多引擎聚合流水线
+  Step 3: src/tests/aggregation.test.ts
+
+Phase 2c (handler 集成, ✅ 2026-06-14 完成):
+  ✅ Step 1: handler.ts → analyzeWithEngines()      (引擎匹配 → 可用性检测 → 运行分析)
+  ✅ Step 2: handler.ts → enrichWithEngineImpacts()  (引擎结果合并到 legacy 格式)
+  ✅ Step 3: handler.ts → locateRepoClone()          (本地克隆定位)
+
+Phase 2d (java-callgraph 引擎接入, ✅ 2026-06-14 完成):
+  ✅ Step 1: scripts/setup-java-callgraph.sh     — 自动安装脚本
+  ✅ Step 2: src/engines/adapters/java-callgraph.ts — 专用适配器 (编译→分析→解析, 320行)
+  ✅ Step 3: runner.ts 适配器调度层               — runEngineAnalysis() 内置引擎路由
+  ✅ Step 4: examples/engines.conf.example.json   — 配置模板更新
+
+Phase 2e (dependency-cruiser 引擎接入, 🔜 待定):
+  待用户决策后引入
+```
+
+### 14.7 关键设计决策 (ADR)
+
+| # | 决策 | 理由 |
+|:--:|------|------|
+| 1 | **PanoramaIndex 独立存储** — `.tia/{branch}/panorama-{engineId}.json` | 解耦引擎间依赖，原子更新 |
+| 2 | **置信度线性加权** — `归一化 = raw × (weight/50)` | 简单透明，与 Confidence(0-100) 直接兼容 |
+| 3 | **引擎惰性初始化** — 启动不检测，首次调用时检测 | 快速启动，HTTP 模式友好，与 getAdapter() 模式一致 |
+| 4 | **Glob 匹配永不删除** — 作为终极降级 | 全部引擎失败时零依赖可用 |
+| 5 | **Backward Compatible** — `UnifiedImpactResult → enrichWithEngineImpacts() → RepoImpactResult` | Phase 3/4 (test_recommendation + risk_assessment) 零改动 |
+| 6 | **专门适配器 > 通用 runner** — java-callgraph 输出文本而非 JSON，必须专用解析 | runner.ts 的 runEngineAnalysis() 按 engineId 路由到适配器或通用 exec runner |
+
+### 14.8 java-callgraph 适配器 — 技术细节
+
+#### 14.8.1 为什么需要专用适配器？
+
+java-callgraph 输出的**不是 JSON**，而是自定义文本格式：
+
+```
+M:com.example.Foo:<init>() (M)java.lang.Object:<init>()    ← 方法调用行
+C:com.example.Foo com.example.Bar                          ← 类调用行
+J:1 /path/to/app.jar                                       ← JAR 索引行
+```
+
+通用 `runner.ts` 的 `runFullAnalysis()` 期望 `JSON.parse(stdout)` → 会解析失败。
+因此需要专用适配器：解析文本行 → `PanoramaIndex`。
+
+#### 14.8.2 适配器工作流
+
+```
+createJavaCallGraphEngine(runner, projectRoot)
+  └─ runFullAnalysis(repoPath, branch)
+       ├─ 1. 可选编译 (buildCommand)
+       ├─ 2. 查找编译产物 (target/classes/ 或 target/*.jar)
+       ├─ 3. 运行 javacg-static.jar → stdout 文本
+       ├─ 4. parseOutput() 解析文本行
+       │    ├─ M: 行 → callGraph + reverseCallGraph + method→file 映射
+       │    ├─ C: 行 → 类级补充
+       │    └─ J: 行 → JAR 位置（可选）
+       └─ 5. 返回 PanoramaIndex
+            ├─ callGraph: callerFqn → [calleeFqn, ...]
+            ├─ reverseCallGraph: calleeFqn → [callerFqn, ...]  ← BFS 输入
+            ├─ fileToMethods: filePath → [methodFqn, ...]
+            └─ terminalMethods: 空（java-callgraph 无框架感知，端点在 Phase 5b 增强）
+```
+
+#### 14.8.3 Runner 配置格式
+
+```jsonc
+{
+  "id": "java-callgraph",
+  "enabled": true,
+  "runner": {
+    "type": "exec",
+    "command": "java",
+    "args": [
+      "-Xmx2g",
+      "-jar",
+      "lib/java-callgraph/javacg-static.jar",
+      "{repoPath}"                // 占位符 → 替换为编译产物路径
+    ],
+    "timeoutMs": 600000           // 10 分钟超时
+  }
+}
+```
+
+> **注意**: runner.args 仅作为**元数据参考**。适配器内部自行构造 `java -jar` 命令，
+> args 主要用于记录 JAR 路径（适配器通过 `-jar` 后第一个参数提取）。
+
+#### 14.8.4 关键限制与未来增强
+
+| 限制 | 影响 | 解决方案 |
+|------|------|----------|
+| **分析 JAR/class 而非源码** | 仓库需预先编译（`mvn compile`） | 通过 `buildCommand` 或手动编译 |
+| **无框架感知** | 不识别 @Controller/@KafkaListener 等注解 | Phase 5b 补充→需结合源码注解扫描 |
+| **无行号信息** | 标准版 java-callgraph 不输出行号 | 使用增强版或接受无行号 |
+| **全量分析无增量** | 每次运行重新分析所有 class | Phase 2e 增量索引方案 |
+
+#### 14.8.5 安装脚本
+
+```bash
+bash scripts/setup-java-callgraph.sh
+```
+
+行为：
+1. 检查 JDK 11+、Maven、Git
+2. `git clone` java-callgraph 源码
+3. `mvn clean package -DskipTests`
+4. 复制 `javacg-static.jar` → `lib/java-callgraph/`
+5. 写入版本信息到 `lib/java-callgraph/VERSION.txt`
+6. 清理临时文件
+
+#### 14.8.6 解析器设计 (parseOutput)
+
+**行类型检测**（按首字符）:
+
+```
+'M' + ':'  → 方法调用行  → callGraph + reverseCallGraph
+'C' + ':'  → 类调用行    → 类级统计
+'J' + ':'  → JAR 索引行  → 可选，增强版才有
+```
+
+**方法调用行解析**:
+
+```
+输入: "M:com.example.Foo:<init>(java.lang.String) (M)java.lang.Object:<init>()"
+       └─ 去掉 "M:"
+         └─ com.example.Foo:<init>(java.lang.String) (M)java.lang.Object:<init>()
+              └─ 在 ") (" 处分割
+                ├─ caller: "com.example.Foo:<init>(java.lang.String)"  → FQN: "com.example.Foo:<init>"
+                └─ callee: "M)java.lang.Object:<init>()"               → FQN: "java.lang.Object:<init>"
+```
+
+**类→文件映射**（惰性缓存）:
+
+```typescript
+// com.example.Foo → src/main/java/com/example/Foo.java
+const relativePath = className.replace(/\./g, "/").split("$")[0] + ".java";
+// 去掉内部类后缀 ($Inner) ，定位外部类文件
+```
+
+### 14.9 当前架构全景图（2026-06-14 最终状态）
+
+```
+impact_analysis 工具
+  │
+  └─ handleImpactAnalysis()
+       └─ analyzeRepo() × N 仓库
+            ├─ adapter.getDiffFiles(from, to)           ← 变更文件列表
+            │
+            ├─ analyzeWithEngines(repo, changedFiles)   ← Phase 2a ✅ 引擎增强
+            │   ├─ matchEngineFiles(changedFiles)       ← registry: 扩展名匹配
+            │   │   └─ .java → java-callgraph
+            │   ├─ locateRepoClone(repo)                ← 本地克隆存在性检查
+            │   ├─ checkAvailability(engineConfig)      ← runner: 内置/通用检测
+            │   ├─ runEngineAnalysis(engineConfig, ...) ← runner: 内置→适配器 / 通用→exec
+            │   │   └─ java-callgraph → createJavaCallGraphEngine()
+            │   │       ├─ 编译 (可选 buildCommand)
+            │   │       ├─ javacg-static.jar → 文本输出
+            │   │       └─ parseOutput() → PanoramaIndex
+            │   ├─ computeImpactsFromIndex(files, idx)  ← call-chain-traversal: BFS
+            │   └─ getUnmatchedFiles()                  ← registry: 未覆盖文件
+            │
+            ├─ analyzeImpact(uncoveredFiles, config)    ← glob 文件级兜底 ✅
+            │
+            └─ enrichWithEngineImpacts(base, unified)   ← Phase 2a ✅ 引擎结果合并
+                 ├─ API/MQ/Job 端点 → 测试模块摘要
+                 └─ engineModules[] + glob modules[] = 最终结果
+
+═══════════════════════════════════════════════════════
+引擎适配器层 (src/engines/)
+
+types.ts              ← AnalysisEngine 接口契约
+registry.ts           ← 引擎注册表 (配置读写 + 匹配)
+runner.ts             ← 运行器 (内置/通用路由 + exec/mcp/http)
+call-chain-traversal.ts ← BFS 算法 (PanoramaIndex → CallChainImpact)
+adapters/
+  java-callgraph.ts   ← java-callgraph 专用适配器 (✅ 已实现)
+
+═══════════════════════════════════════════════════════
+安装与配置
+
+scripts/setup-java-callgraph.sh   ← 自动安装脚本
+examples/engines.conf.example.json ← 配置模板
+lib/java-callgraph/               ← JAR 存放目录
+```
