@@ -1,6 +1,6 @@
 #!/bin/bash
 # TIA pre-commit 安全检查
-# 聚焦于真实的代码安全风险，而非假想的企业场景。
+# 三层企业信息安全防线 + 通用代码安全规则
 set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -9,11 +9,76 @@ echo "[TIA-SEC] 正在检查提交内容..."
 VIOLATIONS=0
 WARNINGS=0
 
-# 只检查新增(A)和修改(M)的文件
 STAGED=$(git diff --cached --name-only --diff-filter=AM)
 
-# ── 规则1: 明文凭据检测 ──────────────────────────
-# 覆盖: API Key / Access Token / Password / Private Key / JWT / Connection String
+# ═══════════════════════════════════════════════════════
+# 第一层防线: enterprise/ 目录隔离 (阻断)
+# ═══════════════════════════════════════════════════════
+# enterprise/ 下存放企业私有配置、代码、凭据，严禁提交到远端仓库。
+# 这是防止企业内部信息外泄的第一道闸门。
+if [ -n "$STAGED" ]; then
+  ENTERPRISE_FILES=$(echo "$STAGED" | grep "^enterprise/" || true)
+  if [ -n "$ENTERPRISE_FILES" ]; then
+    echo -e "${RED}[TIA-SEC] ❌ 禁止提交 enterprise/ 目录下的文件:${NC}"
+    echo "$ENTERPRISE_FILES" | while read -r f; do
+      echo -e "        $f"
+    done
+    echo "        原因: enterprise/ 存放企业私有配置/代码，提交会导致信息外泄"
+    VIOLATIONS=1
+  fi
+fi
+
+# ═══════════════════════════════════════════════════════
+# 第二层防线: 企业域名检测 (阻断)
+# ═══════════════════════════════════════════════════════
+# 检查所有暂存文件内容，阻止任何含 *.huawei*.com 的文件被提交。
+# 这是 enterprise/ 隔离的第二道闸门——即使文件不在 enterprise/ 目录，
+# 只要内容含企业内部域名一律阻断。
+if [ -n "$STAGED" ]; then
+  for f in $STAGED; do
+    # 跳过 hook 文件自身（规则描述中可能包含域名模式示例）
+    case "$f" in .githooks/*) continue ;; esac
+    # 跳过二进制文件
+    if file "$f" 2>/dev/null | grep -q "binary"; then continue; fi
+    content=$(git show ":$f" 2>/dev/null) || continue
+
+    if echo "$content" | grep -qi "huawei.*\.com"; then
+      echo -e "${RED}[TIA-SEC] ❌ $f — 文件内容包含 *.huawei*.com 企业域名${NC}"
+      echo "        原因: 企业内部域名不得出现在公开仓库中"
+      VIOLATIONS=1
+    fi
+  done
+fi
+
+# ═══════════════════════════════════════════════════════
+# 规则3: monitors.conf.json 禁止提交到根目录 (阻断)
+# ═══════════════════════════════════════════════════════
+# monitors.conf.json 存储仓库监控配置，包含:
+#   - 企业仓库 SSH URL (git@codehub.huawei.com:...)
+#   - 企业内部 API 端点 (https://codehub.huawei.com/...)
+#   - 本地 baseDir 绝对路径
+# 这些信息一旦提交到远端仓库，即构成企业内部信息安全违规。
+# 正确做法: 放在 enterprise/ 目录（不进远端），或确保 .gitignore 生效。
+if echo "$STAGED" | grep -q "^monitors\.conf\.json$"; then
+  echo -e "${RED}[TIA-SEC] ❌ 禁止提交 monitors.conf.json${NC}"
+  echo "        原因: 该文件包含企业仓库 SSH URL、API 端点、本地绝对路径"
+  echo "        正确: 放在 enterprise/ 目录或依赖 .gitignore 排除"
+  VIOLATIONS=1
+fi
+
+# ═══════════════════════════════════════════════════════
+# 规则4: monitors.json 禁止提交 (阻断)
+# ═══════════════════════════════════════════════════════
+# monitors.json 是程序自动维护的状态文件（水位 SHA、检查时间等），
+# 不应被 git 跟踪。
+if echo "$STAGED" | grep -q "^monitors\.json$"; then
+  echo -e "${RED}[TIA-SEC] ❌ 禁止提交 monitors.json（程序状态文件）${NC}"
+  VIOLATIONS=1
+fi
+
+# ═══════════════════════════════════════════════════════
+# 规则5: 明文凭据检测 (阻断)
+# ═══════════════════════════════════════════════════════
 SECRET_PATTERNS=(
   '(api[_-]?key|api[_-]?secret|access[_-]?key|secret[_-]?key)\s*[:=]\s*["\x27][A-Za-z0-9_\-]{16,}["\x27]'
   '(password|passwd|pwd)\s*[:=]\s*["\x27][^"\x27]{6,}["\x27](?!.*placeholder|dummy|example)'
@@ -39,8 +104,9 @@ if [ -n "$STAGED" ]; then
   done
 fi
 
-# ── 规则2: 大文件检测 ─────────────────────────────
-# 阻止 >500KB 的非必要文件（排除 .gitattributes 等）
+# ═══════════════════════════════════════════════════════
+# 规则6: 大文件检测 (警告)
+# ═══════════════════════════════════════════════════════
 MAX_SIZE_KB=500
 if [ -n "$STAGED" ]; then
   for f in $STAGED; do
@@ -53,8 +119,9 @@ if [ -n "$STAGED" ]; then
   done
 fi
 
-# ── 规则3: TODO/FIXME 追踪 ───────────────────────
-# 不阻止提交，但提醒开发者关注遗留标记
+# ═══════════════════════════════════════════════════════
+# 规则7: TODO/FIXME 过多 (提醒)
+# ═══════════════════════════════════════════════════════
 if [ -n "$STAGED" ]; then
   for f in $STAGED; do
     case "$f" in
@@ -67,17 +134,7 @@ if [ -n "$STAGED" ]; then
   done
 fi
 
-# ── 规则4: monitors.conf.json 不允许在根目录 ──────
-# 项目约定：仓库配置应在 enterprise/ 目录（如存在），或直接 gitignore
-if echo "$STAGED" | grep -q "^monitors\.conf\.json$"; then
-  # 仅当 enterprise/ 目录存在时才阻止
-  if [ -d "enterprise" ]; then
-    echo -e "${RED}[TIA-SEC] ❌ monitors.conf.json 应放在 enterprise/ 目录${NC}"
-    VIOLATIONS=1
-  fi
-fi
-
-# ── 结果 ─────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
 echo ""
 
 if [ $VIOLATIONS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
