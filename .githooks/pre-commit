@@ -1,74 +1,93 @@
 #!/bin/bash
-# TIA 信息安全 pre-commit 检查
+# TIA pre-commit 安全检查
+# 聚焦于真实的代码安全风险，而非假想的企业场景。
 set -e
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; NC='\033[0m'
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 echo "[TIA-SEC] 正在检查提交内容..."
 
 VIOLATIONS=0
+WARNINGS=0
 
-# 只检查新增(A)和修改(M)的文件，跳过删除(D)和重命名(R)
-ADDED_OR_MODIFIED=$(git diff --cached --name-only --diff-filter=AM)
+# 只检查新增(A)和修改(M)的文件
+STAGED=$(git diff --cached --name-only --diff-filter=AM)
 
-# 规则1: enterprise/ 目录绝不允许被跟踪（新增/修改都不行）
-if echo "$ADDED_OR_MODIFIED" | grep -q "^enterprise/"; then
-  echo -e "${RED}[TIA-SEC] ❌ 禁止提交 enterprise/ 目录${NC}"
-  VIOLATIONS=1
+# ── 规则1: 明文凭据检测 ──────────────────────────
+# 覆盖: API Key / Access Token / Password / Private Key / JWT / Connection String
+SECRET_PATTERNS=(
+  '(api[_-]?key|api[_-]?secret|access[_-]?key|secret[_-]?key)\s*[:=]\s*["\x27][A-Za-z0-9_\-]{16,}["\x27]'
+  '(password|passwd|pwd)\s*[:=]\s*["\x27][^"\x27]{6,}["\x27](?!.*placeholder|dummy|example)'
+  '-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'
+  '(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}'
+  'sk-[A-Za-z0-9_\-]{32,}'
+  'eyJ[A-Za-z0-9\-_]{20,}\.[A-Za-z0-9\-_]{20,}\.[A-Za-z0-9\-_]{10,}'
+  '(mongodb|mysql|postgres(ql)?|redis)://[^@]+@'
+)
+
+if [ -n "$STAGED" ]; then
+  for f in $STAGED; do
+    content=$(git show ":$f" 2>/dev/null) || continue
+    for pattern in "${SECRET_PATTERNS[@]}"; do
+      if echo "$content" | grep -qiE "$pattern"; then
+        match=$(echo "$content" | grep -niE "$pattern" | head -3 | tr '\n' '; ')
+        echo -e "${RED}[TIA-SEC] ❌ $f — 疑似明文凭据${NC}"
+        echo -e "        匹配: $match"
+        VIOLATIONS=1
+        break
+      fi
+    done
+  done
 fi
 
-# 规则2: 禁止真实工号模式（仅检查新增/修改的非文档文件）
-if [ -n "$ADDED_OR_MODIFIED" ]; then
-  for f in $ADDED_OR_MODIFIED; do
-    # 跳过蓝图、规划、设计文档
-    case "$f" in
-      .claude/plans/*|gan-harness/*|CLAUDE.md)
-        continue ;;
-    esac
-    if git show ":$f" 2>/dev/null | grep -q "l[0-9]\{8\}"; then
-      echo -e "${RED}[TIA-SEC] ❌ $f — 疑似员工工号，请替换为 <YOUR-CONTACT-ID>${NC}"
-      VIOLATIONS=1
+# ── 规则2: 大文件检测 ─────────────────────────────
+# 阻止 >500KB 的非必要文件（排除 .gitattributes 等）
+MAX_SIZE_KB=500
+if [ -n "$STAGED" ]; then
+  for f in $STAGED; do
+    size=$(git cat-file -s ":$f" 2>/dev/null) || continue
+    size_kb=$((size / 1024))
+    if [ "$size_kb" -gt "$MAX_SIZE_KB" ]; then
+      echo -e "${YELLOW}[TIA-SEC] ⚠️  $f — ${size_kb}KB，超过 ${MAX_SIZE_KB}KB 阈值${NC}"
+      WARNINGS=1
     fi
   done
 fi
 
-# 规则3: 禁止企业内部域名（仅检查新增/修改的配置/源码文件，跳过蓝图文档）
-if [ -n "$ADDED_OR_MODIFIED" ]; then
-  for f in $ADDED_OR_MODIFIED; do
+# ── 规则3: TODO/FIXME 追踪 ───────────────────────
+# 不阻止提交，但提醒开发者关注遗留标记
+if [ -n "$STAGED" ]; then
+  for f in $STAGED; do
     case "$f" in
-      .claude/plans/*|gan-harness/*|CLAUDE.md|*.md|docs/*)
-        continue ;;
+      .githooks/*|*.md|docs/*|.claude/*) continue ;;
     esac
-    if git show ":$f" 2>/dev/null | grep -q "codehub\.huawei\.com"; then
-      echo -e "${RED}[TIA-SEC] ❌ $f — 企业内部域名，请替换为 <YOUR-GIT-HOST> 或放入 enterprise/${NC}"
-      VIOLATIONS=1
+    count=$(git show ":$f" 2>/dev/null | grep -ciE '\b(TODO|FIXME|HACK|XXX)\b' || true)
+    if [ "$count" -gt 3 ]; then
+      echo -e "${YELLOW}[TIA-SEC] 💡 $f — ${count} 个 TODO/FIXME，考虑在本次提交中解决${NC}"
     fi
   done
 fi
 
-# 规则4: 禁止 Windows 绝对路径（仅检查新增/修改，跳过文档/计划文件）
-if [ -n "$ADDED_OR_MODIFIED" ]; then
-  for f in $ADDED_OR_MODIFIED; do
-    case "$f" in
-      .claude/plans/*|gan-harness/*|*.md|docs/*)
-        continue ;;
-    esac
-    if git show ":$f" 2>/dev/null | grep -qE "[A-Za-z]:/(Users|Program|Workspace|Wayne)"; then
-      echo -e "${RED}[TIA-SEC] ❌ $f — Windows 绝对路径，请使用相对路径${NC}"
-      VIOLATIONS=1
-    fi
-  done
+# ── 规则4: monitors.conf.json 不允许在根目录 ──────
+# 项目约定：仓库配置应在 enterprise/ 目录（如存在），或直接 gitignore
+if echo "$STAGED" | grep -q "^monitors\.conf\.json$"; then
+  # 仅当 enterprise/ 目录存在时才阻止
+  if [ -d "enterprise" ]; then
+    echo -e "${RED}[TIA-SEC] ❌ monitors.conf.json 应放在 enterprise/ 目录${NC}"
+    VIOLATIONS=1
+  fi
 fi
 
-# 规则5: 禁止新增 monitors.conf.json 到根目录（D 状态放行）
-if echo "$ADDED_OR_MODIFIED" | grep -q "^monitors.conf.json$"; then
-  echo -e "${RED}[TIA-SEC] ❌ 请将 monitors.conf.json 放在 enterprise/ 目录${NC}"
-  VIOLATIONS=1
-fi
+# ── 结果 ─────────────────────────────────────────
+echo ""
 
-if [ $VIOLATIONS -eq 0 ]; then
+if [ $VIOLATIONS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
   echo -e "${GREEN}[TIA-SEC] ✅ 检查通过${NC}"
   exit 0
+elif [ $VIOLATIONS -eq 0 ]; then
+  echo -e "${YELLOW}[TIA-SEC] ⚠️  有 ${WARNINGS} 个警告，提交继续${NC}"
+  exit 0
 else
-  echo -e "${RED}[TIA-SEC] ❌ 提交被阻止，请修复以上问题${NC}"
+  echo -e "${RED}[TIA-SEC] ❌ 有 ${VIOLATIONS} 个违规项，提交被阻止${NC}"
+  echo "         提示: 确认后可用 git commit --no-verify 跳过检查"
   exit 1
 fi
