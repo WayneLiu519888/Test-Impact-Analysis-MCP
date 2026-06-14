@@ -28,8 +28,8 @@ if [ -n "$STAGED" ]; then
   for f in $STAGED; do
     content=$(git show ":$f" 2>/dev/null) || continue
     for pattern in "${SECRET_PATTERNS[@]}"; do
-      if echo "$content" | grep -qiE "$pattern"; then
-        match=$(echo "$content" | grep -niE "$pattern" | head -3 | tr '\n' '; ')
+      if echo "$content" | grep -qiE -e "$pattern"; then
+        match=$(echo "$content" | grep -niE -e "$pattern" | head -3 | tr '\n' '; ')
         echo -e "${RED}[TIA-SEC] ❌ $f — 疑似明文凭据${NC}"
         echo -e "        匹配: $match"
         VIOLATIONS=1
