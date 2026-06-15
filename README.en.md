@@ -187,6 +187,18 @@ impact_analysis call
 
 ---
 
+## 🌐 Cross-Platform Support
+
+The same MCP toolset shared across three AI coding frameworks.
+
+| Dimension | Claude Code | OpenCode | Codex (OpenAI) |
+|------|------------|----------|----------------|
+| **Command Dir** | `.claude/commands/` | `.opencode/commands/` | `.codex/skills/` |
+| **File Format** | `.md` (frontmatter) | `.md` ($NAME) | `SKILL.md` (YAML) |
+| **Invocation** | `/command-name` | `Ctrl+K` palette | `$skill-name` |
+
+---
+
 ## 📥 Installation
 
 ### Claude Code (stdio)

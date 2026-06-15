@@ -183,6 +183,18 @@ impact_analysis 调用
 
 ---
 
+## 🌐 跨平台支持
+
+同一套 MCP 工具，三个 AI 编程框架共享。
+
+| 维度 | Claude Code | OpenCode | Codex (OpenAI) |
+|------|------------|----------|----------------|
+| **命令目录** | `.claude/commands/` | `.opencode/commands/` | `.codex/skills/` |
+| **文件格式** | `.md` (frontmatter) | `.md` ($NAME) | `SKILL.md` (YAML) |
+| **调用方式** | `/命令名` | `Ctrl+K` 命令面板 | `$技能名` |
+
+---
+
 ## 📥 安装方式
 
 ### Claude Code (stdio)
