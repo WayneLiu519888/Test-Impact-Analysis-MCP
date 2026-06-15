@@ -35,15 +35,14 @@
 <details open>
 <summary><strong>📋 快速指引</strong></summary>
 
-<table width="100%">
-<tr><th width="40%">我想...</th><th>看这里</th></tr>
-<tr><td>快速把项目跑起来</td><td><a href="#-快速开始">🚀 快速开始</a></td></tr>
-<tr><td>了解能做什么</td><td><a href="#-项目定位">🎯 项目定位</a></td></tr>
-<tr><td>看有哪些工具可用</td><td><a href="#️-5-个-mcp-工具">🛠️ 5 个 MCP 工具</a></td></tr>
-<tr><td>接入外部分析引擎</td><td><a href="#-分析引擎集成">🔬 分析引擎集成</a></td></tr>
-<tr><td>配置 Claude Code / OpenCode</td><td><a href="#-安装方式">📥 安装方式</a></td></tr>
-<tr><td>看完整设计蓝图</td><td><a href=".claude/plans/ultimate-blueprint-v3.md">📐 ultimate-blueprint-v3.md</a></td></tr>
-</table>
+| 我想... | 看这里 |
+|:---|:---|
+| 快速把项目跑起来 | [🚀 快速开始](#-快速开始) |
+| 了解能做什么 | [🎯 项目定位](#-项目定位) |
+| 看有哪些工具可用 | [🛠️ 5 个 MCP 工具](#️-5-个-mcp-工具) |
+| 接入外部分析引擎 | [🔬 分析引擎集成](#-分析引擎集成) |
+| 配置 Claude Code / OpenCode | [📥 安装方式](#-安装方式) |
+| 看完整设计蓝图 | [.claude/plans/ultimate-blueprint-v3.md](.claude/plans/ultimate-blueprint-v3.md) |
 </details>
 
 ---
