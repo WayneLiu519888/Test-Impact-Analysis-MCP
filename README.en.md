@@ -36,14 +36,15 @@
 <details open>
 <summary><strong>📋 Quick Navigation</strong></summary>
 
-| I want to... | Go to |
-|:-----------|:------|
-| Get started quickly | [🚀 Quick Start](#-quick-start) |
-| Understand what TIA does | [🎯 Architecture](#-architecture) |
-| See available tools | [🛠️ 5 MCP Tools](#️-5-mcp-tools) |
-| Integrate an analysis engine | [🔬 Engine Integration](#-engine-integration) |
-| Configure Claude Code / OpenCode | [📥 Installation](#-installation) |
-| Read the full blueprint | [`.claude/plans/ultimate-blueprint-v3.md`](.claude/plans/ultimate-blueprint-v3.md) |
+<table width="100%">
+<tr><th width="40%">I want to...</th><th>Go to</th></tr>
+<tr><td>Get started quickly</td><td><a href="#-quick-start">🚀 Quick Start</a></td></tr>
+<tr><td>Understand what TIA does</td><td><a href="#-architecture">🎯 Architecture</a></td></tr>
+<tr><td>See available tools</td><td><a href="#️-5-mcp-tools">🛠️ 5 MCP Tools</a></td></tr>
+<tr><td>Integrate an analysis engine</td><td><a href="#-engine-integration">🔬 Engine Integration</a></td></tr>
+<tr><td>Configure Claude Code / OpenCode</td><td><a href="#-installation">📥 Installation</a></td></tr>
+<tr><td>Read the full blueprint</td><td><a href=".claude/plans/ultimate-blueprint-v3.md">📐 ultimate-blueprint-v3.md</a></td></tr>
+</table>
 </details>
 
 ---
